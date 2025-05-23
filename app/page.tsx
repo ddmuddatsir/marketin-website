@@ -98,7 +98,7 @@ export default function Home() {
   // Initial load
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   // Infinite scroll logic
   const lastProductRef = useCallback(

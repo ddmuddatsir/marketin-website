@@ -36,7 +36,7 @@ interface Cart {
 
 export default function CartPage() {
   const [carts, setCarts] = useState<Cart[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,10 +46,12 @@ export default function CartPage() {
         if (!res.ok) throw new Error("Failed to fetch carts");
         const data = await res.json();
         setCarts(data.carts);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Unknown error");
+        }
       }
     }
     fetchCarts();

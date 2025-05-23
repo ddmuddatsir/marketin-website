@@ -12,13 +12,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
+
+interface UserData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  token: string;
+  image: string;
+}
 
 const LoginForm = () => {
   const router = useRouter();
 
   const [username, setUsername] = useState("emilys");
   const [password, setPassword] = useState("emilyspass");
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -47,7 +56,8 @@ const LoginForm = () => {
         setUserData(null);
         setError(data.message || "Login failed");
       }
-    } catch (err) {
+    } catch (error) {
+      console.error("Login error:", error);
       setUserData(null);
       setError("Network error");
     }
@@ -99,9 +109,11 @@ const LoginForm = () => {
           <h3 className="text-lg font-semibold">
             Welcome, {userData.firstName} {userData.lastName}
           </h3>
-          <img
+          <Image
             src={userData.image}
             alt="Profile"
+            width={64}
+            height={64}
             className="w-16 h-16 rounded-full my-2"
           />
           <p>Email: {userData.email}</p>

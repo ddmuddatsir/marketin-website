@@ -6,6 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FaSearch } from "react-icons/fa";
 
+type Product = {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  // Tambahkan properti lain jika diperlukan dari dummyjson.com/products
+};
+
 export default function SearchBar() {
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -28,7 +36,10 @@ export default function SearchBar() {
         );
         const data = await res.json();
         // Ambil judul produk, batasi max 5
-        const productNames = data.products.map((p: any) => p.title).slice(0, 5);
+        const productNames = (data.products as Product[])
+          .map((p) => p.title)
+          .slice(0, 5);
+
         setSuggestions(productNames);
         setShowSuggestions(productNames.length > 0);
       } catch (error) {

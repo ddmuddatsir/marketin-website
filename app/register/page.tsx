@@ -38,8 +38,12 @@ export default function RegisterPage() {
       } else {
         setError("Gagal membuat akun, coba lagi nanti.");
       }
-    } catch (err: any) {
-      console.error("Error response:", err.response?.data || err.message);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error("Error response:", err.response?.data || err.message);
+      } else {
+        console.error("Unexpected error:", err);
+      }
       setError("Gagal membuat akun. Silakan coba lagi.");
     }
   };

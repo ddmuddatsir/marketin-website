@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { deleteCookie } from "cookies-next";
+import Image from "next/image";
 
 interface Hair {
   color: string;
@@ -130,9 +131,11 @@ const AccountPage = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-center">
-            <img
+            <Image
               src={user.image}
               alt={`${user.firstName} ${user.lastName}`}
+              width={600}
+              height={600}
               className="w-20 h-20 rounded-full"
             />
           </div>
