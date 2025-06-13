@@ -1,148 +1,151 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCartMutations, useGetCartData } from "@/hooks/useCart";
 import Image from "next/image";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
-
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  quantity: number;
-  total: number;
-  discountPercentage: number;
-  discountedTotal: number;
-  thumbnail: string;
-}
-
-interface Cart {
-  id: number;
-  products: Product[];
-  total: number;
-  discountedTotal: number;
-  userId: number;
-  totalProducts: number;
-  totalQuantity: number;
-}
-
-export default function CartPage() {
-  const [carts, setCarts] = useState<Cart[]>([]);
-  const [loading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const CartPage = () => {
+  const [userId, setUserId] = useState<number | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    async function fetchCarts() {
-      try {
-        const res = await fetch("https://dummyjson.com/carts");
-        if (!res.ok) throw new Error("Failed to fetch carts");
-        const data = await res.json();
-        setCarts(data.carts);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Unknown error");
-        }
-      }
+    const useStr = localStorage.getItem("user");
+    if (useStr) {
+      const user = JSON.parse(useStr);
+      if (user?.id) setUserId(user.id);
     }
-    fetchCarts();
   }, []);
 
-  if (loading)
-    return (
-      <p className="text-center mt-8 text-muted-foreground">Loading carts...</p>
-    );
-  if (error)
-    return (
-      <p className="text-center mt-8 text-red-600 font-semibold">{error}</p>
-    );
+  const { data: cartData, isLoading } = useGetCartData(6);
+  const { updateMutation, deleteMutation } = useCartMutations(6);
+
+  // ✅ Handle checkout
+  const handleCheckout = (cartId: number) => {
+    // Simulasi API checkout, bisa disesuaikan dengan backend kamu
+    alert(`Checkout success for Cart #${cartId}`);
+
+    // Hapus cart setelah checkout (opsional)
+    deleteMutation.mutate(cartId);
+
+    // Redirect ke halaman order success (opsional)
+    router.push("/checkout-success");
+  };
+
+  if (isLoading) return <p className="text-center mt-10">Loading...</p>;
 
   return (
-    <main className="max-w-7xl mx-auto p-6">
-      <h1 className="text-4xl font-extrabold mb-10 text-center">
-        Shopping Carts
-      </h1>
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <h1 className="text-4xl font-bold text-center mb-10">Your Cart</h1>
 
-      {carts.length === 0 && <p>No carts available.</p>}
+      {cartData && cartData.carts.length > 0 ? (
+        cartData.carts.map((cart) => (
+          <div
+            key={cart.id}
+            className="border rounded-xl p-6 mb-10 shadow-md bg-white"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-700">
+                  Cart #{cart.id}
+                </h2>
+                <p className="text-sm text-gray-500">User ID: {cart.userId}</p>
+              </div>
+              <button
+                onClick={() => deleteMutation.mutate(cart.id)}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+              >
+                Delete Cart
+              </button>
+            </div>
 
-      <div className="flex flex-col space-y-8">
-        {carts.map((cart) => (
-          <Card key={cart.id} className="bg-white shadow-md">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Cart #{cart.id}</span>
-                <Badge variant="secondary">User ID: {cart.userId}</Badge>
-              </CardTitle>
-              <CardDescription className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-2">
-                <span>Total Products: {cart.totalProducts}</span>
-                <span>Total Quantity: {cart.totalQuantity}</span>
-                <span>Total Price: ${cart.total.toFixed(2)}</span>
-                <span>
-                  Discounted Total: ${cart.discountedTotal.toFixed(2)}
-                </span>
-              </CardDescription>
-            </CardHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {cart.products.map((product) => (
+                <div
+                  key={product.id}
+                  className="border rounded-lg p-4 shadow-sm flex flex-col gap-3"
+                >
+                  <div className="flex items-center gap-4">
+                    <Image
+                      src={product.thumbnail}
+                      alt={product.title}
+                      width={80}
+                      height={80}
+                      className="rounded-lg object-cover"
+                    />
+                    <div>
+                      <h4 className="font-semibold text-lg text-gray-800">
+                        {product.title}
+                      </h4>
+                      <p className="text-gray-600 text-sm">
+                        ${product.price} x {product.quantity}
+                      </p>
+                      <p className="text-sm text-green-600 font-medium">
+                        Discount: {product.discountPercentage}%
+                      </p>
+                    </div>
+                  </div>
 
-            <CardContent>
-              <ScrollArea className="h-[320px]">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {cart.products.map((product) => (
-                    <Card
-                      key={product.id}
-                      className="flex flex-col sm:flex-row items-center gap-4 p-4"
-                    >
-                      <div className="relative w-28 h-28 flex-shrink-0">
-                        <Image
-                          src={product.thumbnail}
-                          alt={product.title}
-                          fill
-                          className="object-cover rounded"
-                        />
-                      </div>
-                      <div className="flex-1 flex flex-col gap-1">
-                        <h3 className="font-semibold text-lg">
-                          {product.title}
-                        </h3>
-                        <p>
-                          Price:{" "}
-                          <span className="font-medium">
-                            ${product.price.toFixed(2)}
-                          </span>
-                        </p>
-                        <p>Quantity: {product.quantity}</p>
-                        <p>
-                          Total:{" "}
-                          <span className="font-medium">
-                            ${product.total.toFixed(2)}
-                          </span>
-                        </p>
-                        <p className="text-green-600 text-sm">
-                          Discount: {product.discountPercentage.toFixed(2)}%
-                        </p>
-                        <p>
-                          Discounted Total:{" "}
-                          <span className="font-semibold">
-                            ${product.discountedTotal.toFixed(2)}
-                          </span>
-                        </p>
-                      </div>
-                    </Card>
-                  ))}
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          updateMutation.mutate({
+                            cartId: cart.id,
+                            productId: product.id,
+                            quantity: product.quantity + 1,
+                          })
+                        }
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
+                        +
+                      </button>
+                      {product.quantity > 1 && (
+                        <button
+                          onClick={() =>
+                            updateMutation.mutate({
+                              cartId: cart.id,
+                              productId: product.id,
+                              quantity: product.quantity - 1,
+                            })
+                          }
+                          className="bg-gray-300 text-black px-3 py-1 rounded hover:bg-gray-400"
+                        >
+                          -
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-right font-semibold text-gray-800">
+                      Total: ${product.total}
+                    </p>
+                  </div>
                 </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </main>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t pt-4 text-right space-y-2">
+              <p className="text-lg font-semibold text-gray-700">
+                Subtotal: ${cart.total}
+              </p>
+              <p className="text-xl font-bold text-green-600">
+                Discounted Total: ${cart.discountedTotal}
+              </p>
+              <button
+                onClick={() => handleCheckout(cart.id)}
+                className="bg-green-600 text-white px-6 py-2 rounded mt-4 hover:bg-green-700 transition"
+              >
+                Checkout
+              </button>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-gray-500 mt-10">
+          No cart data found for user ID {userId}.
+        </p>
+      )}
+    </div>
   );
-}
+};
+
+export default CartPage;

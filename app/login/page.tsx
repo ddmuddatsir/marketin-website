@@ -1,8 +1,6 @@
 "use client";
 
-import { setCookie } from "cookies-next";
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardHeader,
@@ -13,54 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
-
-interface UserData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  token: string;
-  image: string;
-}
+import { useLogin } from "@/hooks/useLogin";
 
 const LoginForm = () => {
-  const router = useRouter();
-
   const [username, setUsername] = useState("emilys");
   const [password, setPassword] = useState("emilyspass");
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [error, setError] = useState("");
+
+  const { login, userData, formError, isPending } = useLogin();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    try {
-      const response = await fetch("https://dummyjson.com/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          password,
-          expiresInMins: 30,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setUserData(data);
-        setError("");
-        // localStorage.setItem("user", JSON.stringify(data));
-        setCookie("token", data.token);
-        router.push("/account"); // ✅ pindah ke page account
-      } else {
-        setUserData(null);
-        setError(data.message || "Login failed");
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      setUserData(null);
-      setError("Network error");
-    }
+    login(username, password);
   };
 
   return (
@@ -93,12 +54,12 @@ const LoginForm = () => {
               />
             </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {formError && <p className="text-red-500 text-sm">{formError}</p>}
           </CardContent>
 
           <CardFooter>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? "Logging in..." : "Login"}
             </Button>
           </CardFooter>
         </form>

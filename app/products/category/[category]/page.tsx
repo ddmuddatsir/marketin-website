@@ -1,43 +1,33 @@
-import { notFound } from "next/navigation";
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useProductCategory } from "@/hooks/useProduct";
 
-interface Product {
-  id: number;
-  title: string;
-  description: string;
-  price: number;
-  rating: number;
-  stock: number;
-  brand: string;
-  category: string;
-  thumbnail: string;
-}
+export default function CategoryPage() {
+  const params = useParams();
+  const category = params?.category as string;
 
-export default async function CategoryPage({
-  params,
-}: {
-  params: { category: string };
-}) {
-  const { category } = params;
+  const {
+    data: products = [],
+    isLoading,
+    isError,
+  } = useProductCategory(category);
 
-  const res = await fetch(
-    `https://dummyjson.com/products/category/${category}`
-  );
-  if (!res.ok) return notFound();
-  const data = await res.json();
-  const products: Product[] = data.products;
+  if (isLoading) return <p>Loading...</p>;
+  if (isError) return <p>Failed to load products</p>;
 
   return (
     <main className="max-w-6xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6 capitalize">
-        Category: {category.replace("-", " ")}
+        {category.replace("-", " ")}
       </h1>
 
       {products.length === 0 ? (
         <p className="text-gray-500">No products found in this category.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map((product) => (
             <div
               key={product.id}
