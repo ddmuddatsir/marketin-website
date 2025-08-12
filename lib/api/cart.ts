@@ -1,12 +1,5 @@
-import { Cart } from "@/types/cart";
+import { CartResponse } from "@/types/cart";
 import axios from "axios";
-
-type CartResponse = {
-  carts: Cart[];
-  total: number;
-  skip: number;
-  limit: number;
-};
 
 // Post add productid to cart product
 export const addToCart = async ({

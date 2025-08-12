@@ -11,9 +11,14 @@ const ReviewProduct: React.FC<ProductReviewsProps> = ({ reviews }) => {
   return (
     <div>
       <section>
-        <h2 className="text-2xl font-bold mb-6">Reviews</h2>
-        {reviews.length === 0 ? (
-          <p className="text-muted-foreground">No reviews yet.</p>
+        <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
+        {!reviews || reviews.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No reviews yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Be the first to review this product!
+            </p>
+          </div>
         ) : (
           <div className="space-y-6 max-h-[400px] overflow-y-auto pr-4">
             {reviews.map((review, index) => (

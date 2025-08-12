@@ -20,7 +20,7 @@ export const useLogin = () => {
     onSuccess: (data) => {
       setUserData(data);
       setCookie("token", data.token);
-      router.push("/account");
+      router.push("/account/orders");
     },
     onError: (error: AxiosError<{ message?: string }>) => {
       const msg = error?.response?.data?.message || "Gagal login. Coba lagi.";

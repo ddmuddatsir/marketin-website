@@ -1,26 +1,23 @@
-import { ProductId } from "@/types/productId";
 import { useAddToCart } from "./useAddToCart";
 
 export const useHandleToCart = () => {
-  const addToCartMutation = useAddToCart();
+  const mutation = useAddToCart();
 
-  const handleAddToCart = (product: ProductId | null) => {
-    if (!product) return;
-
-    const userStr = localStorage.getItem("user");
-    const user = userStr ? JSON.parse(userStr) : null;
-
-    if (!user || !user.id) {
-      alert("User not found");
-      return;
+  const handleAddToCart = async (productId: string, quantity: number = 1) => {
+    try {
+      await mutation.mutateAsync({
+        userId: 1, // Placeholder - will be replaced with actual user ID from Firebase
+        productId: parseInt(productId),
+        quantity,
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      throw error;
     }
-
-    addToCartMutation.mutate({
-      userId: user.id,
-      productId: product.id,
-      quantity: 1,
-    });
   };
 
-  return { handleAddToCart, isPending: addToCartMutation.isPending };
+  return {
+    handleAddToCart,
+    isLoading: mutation.isPending,
+  };
 };

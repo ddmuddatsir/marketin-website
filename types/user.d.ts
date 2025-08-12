@@ -1,9 +1,24 @@
+import { DefaultSession } from "next-auth";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      role: string;
+    } & DefaultSession["user"];
+  }
+
+  interface User {
+    role: string;
+  }
+}
+
 export interface UserData {
-  firstName: string;
-  lastName: string;
+  id: string;
+  name: string;
   email: string;
-  token: string;
-  image: string;
+  image?: string;
+  role: string;
 }
 
 export interface Hair {
@@ -17,13 +32,19 @@ export interface Coordinates {
 }
 
 export interface Address {
-  address: string;
-  city: string;
-  state: string;
-  stateCode: string;
-  postalCode: string;
-  coordinates: Coordinates;
-  country: string;
+  id: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+
+  zipCode?: string;
+  isDefault?: boolean;
+
+  address?: string;
+  stateCode?: string;
+  coordinates?: Coordinates;
 }
 
 export interface Bank {
@@ -48,32 +69,11 @@ export interface Crypto {
 }
 
 export interface UserDetails {
-  id: number;
-  firstName: string;
-  lastName: string;
-  maidenName: string;
-  age: number;
-  gender: string;
+  id: string;
+  name: string;
   email: string;
-  phone: string;
-  username: string;
-  birthDate: string;
-  image: string;
-  bloodGroup: string;
-  height: number;
-  weight: number;
-  eyeColor: string;
-  hair: Hair;
-  ip: string;
-  address: Address;
-  macAddress: string;
-  university: string;
-  bank: Bank;
-  company: Company;
-  ein: string;
-  ssn: string;
-  userAgent: string;
-  crypto: Crypto;
+  image?: string;
   role: string;
-  token?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

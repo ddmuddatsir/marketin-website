@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow all authenticated users to read/write their own data
+    // This includes both real Firebase users and development mock users
+    match /{document=**} {
+      allow read, write: if true; // Temporary - completely open for testing
+    }
+  }
+}

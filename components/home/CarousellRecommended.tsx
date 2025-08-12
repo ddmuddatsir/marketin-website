@@ -1,89 +1,123 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { PRODUCTS_PER_SLIDE } from "@/constants/home";
 import { fetchRecommended } from "@/lib/api/product";
 import { useCarousel } from "@/hooks/useCarousel";
+import { ProductCard } from "@/components/products/ProductCard";
+
+const DESKTOP_PRODUCTS_PER_VIEW = 6; // 6 products per view on desktop
+const TOTAL_VIEWS = 4; // Total number of views
 
 export default function CarouselRecommended() {
-  const { data: recommendedProducts = [], isLoading } = useQuery({
-    queryKey: ["recommended"],
-    queryFn: fetchRecommended,
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ["recommended-products"],
+    queryFn: () => fetchRecommended(DESKTOP_PRODUCTS_PER_VIEW * TOTAL_VIEWS), // Fetch 24 products (6 per view * 4 views)
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const {
-    carouselIndex,
-    next: handleNext,
-    prev: handlePrev,
-    visibleRange,
-  } = useCarousel(recommendedProducts.length, PRODUCTS_PER_SLIDE);
-
-  const visibleProducts = recommendedProducts.slice(
-    visibleRange.start,
-    visibleRange.end
-  );
+    currentSlide,
+    nextSlide,
+    prevSlide,
+    containerRef,
+    isDragging,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+  } = useCarousel(products.length, DESKTOP_PRODUCTS_PER_VIEW);
 
   if (isLoading) {
-    return <div className="text-center">Loading recommended products...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return null;
+  }
+
+  // Group products into views
+  const views = [];
+  for (let i = 0; i < products.length; i += DESKTOP_PRODUCTS_PER_VIEW) {
+    views.push(products.slice(i, i + DESKTOP_PRODUCTS_PER_VIEW));
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Rekomendasi Produk</h2>
+    <div className="relative">
+      <h2 className="text-2xl font-bold mb-6">Recommended Products</h2>
+      <div className="relative flex items-center justify-center gap-4 px-8">
+        <button
+          onClick={prevSlide}
+          className="flex-shrink-0 bg-white/80 p-1.5 rounded-full shadow-lg hover:bg-white transition-colors z-10"
+          aria-label="Previous slide"
+        >
+          <FaChevronLeft className="h-4 w-4" />
+        </button>
 
-      <div className="relative">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handlePrev}
-            disabled={carouselIndex === 0}
-            className="p-2 rounded-full bg-white shadow hover:bg-gray-100 disabled:opacity-50"
+        <div
+          ref={containerRef}
+          className="overflow-hidden flex-1 max-w-[calc(100%-4rem)]"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <div
+            className="flex transition-transform duration-500 ease-out"
+            style={{
+              transform: `translateX(-${currentSlide * 100}%)`,
+              cursor: isDragging ? "grabbing" : "grab",
+            }}
           >
-            <FaChevronLeft size={20} />
-          </button>
-
-          <div className="flex gap-4 overflow-hidden">
-            {visibleProducts.map((product) => (
+            {views.map((viewProducts, viewIndex) => (
               <div
-                key={product.id}
-                className="md:min-w-[180px] md:max-w-[180px] min-w-[100px] max-w-[100px] bg-white rounded-2xl p-2 m-1 shadow hover:shadow-lg transition"
+                key={viewIndex}
+                className="flex-shrink-0 w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"
               >
-                <Link href={`/products/${product.id}`}>
-                  <div className="relative w-full md:h-32 h-14 mb-2">
-                    <Image
-                      src={product.thumbnail}
-                      alt={product.title}
-                      layout="fill"
-                      objectFit="cover"
-                      className="rounded-lg"
+                {viewProducts.map((product) => (
+                  <div key={product.id} className="min-w-0">
+                    <ProductCard
+                      product={product}
+                      showDescription={false}
+                      showRating={true}
                     />
                   </div>
-                  <div className="p-4">
-                    <h3 className="text-sm font-medium truncate">
-                      {product.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 truncate">
-                      {product.brand}
-                    </p>
-                    <p className="text-sm font-bold">${product.price}</p>
-                  </div>
-                </Link>
+                ))}
               </div>
             ))}
           </div>
-
-          <button
-            onClick={handleNext}
-            disabled={
-              carouselIndex + PRODUCTS_PER_SLIDE >= recommendedProducts.length
-            }
-            className="p-2 rounded-full bg-white shadow hover:bg-gray-100 disabled:opacity-50"
-          >
-            <FaChevronRight size={20} />
-          </button>
         </div>
+
+        <button
+          onClick={nextSlide}
+          className="flex-shrink-0 bg-white/80 p-1.5 rounded-full shadow-lg hover:bg-white transition-colors z-10"
+          aria-label="Next slide"
+        >
+          <FaChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex justify-center mt-4 gap-2">
+        {Array.from({ length: TOTAL_VIEWS }).map((_, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              if (containerRef.current) {
+                containerRef.current.scrollTo({
+                  left: index * containerRef.current.offsetWidth,
+                  behavior: "smooth",
+                });
+              }
+            }}
+            className={`w-2 h-2 rounded-full transition-colors ${
+              currentSlide === index ? "bg-gray-900" : "bg-gray-300"
+            }`}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
       </div>
     </div>
   );

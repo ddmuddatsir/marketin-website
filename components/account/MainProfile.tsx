@@ -12,32 +12,18 @@ const MainProfile = ({ user }: ProfileDetailProps) => {
     <TabsContent value="profile" className="space-y-4">
       <div className="flex justify-center">
         <Image
-          src={user.image}
-          alt={`${user.firstName} ${user.lastName}`}
+          src={user.image || "/default-avatar.svg"}
+          alt={user.name || "User"}
           width={100}
           height={100}
           className="rounded-full"
         />
       </div>
       <div className="text-center space-y-1">
-        <h2 className="text-xl font-semibold">
-          {user.firstName} {user.lastName} ({user.maidenName})
-        </h2>
+        <h2 className="text-xl font-semibold">{user.name}</h2>
         <p className="text-sm text-gray-500">{user.email}</p>
-        <p className="text-sm text-gray-600">Username: {user.username}</p>
         <p className="text-sm text-gray-600">Role: {user.role}</p>
-        <p className="text-sm text-gray-600">
-          Phone: {user.phone} | Birth: {user.birthDate}
-        </p>
-        <p className="text-sm text-gray-600">
-          Age: {user.age} | Gender: {user.gender}
-        </p>
-        <p className="text-sm text-gray-600">
-          Blood: {user.bloodGroup} | Eye: {user.eyeColor}
-        </p>
-        <p className="text-sm text-gray-600">
-          Hair: {user.hair.color}, {user.hair.type}
-        </p>
+        <p className="text-sm text-gray-600">ID: {user.id}</p>
       </div>
     </TabsContent>
   );

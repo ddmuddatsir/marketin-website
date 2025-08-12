@@ -2,19 +2,19 @@
 
 import { fetchAllProducts } from "@/lib/api/product";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import Image from "next/image";
-import Link from "next/link";
 import React, { useCallback, useRef } from "react";
+import { ProductCard } from "@/components/products/ProductCard";
 
 const ProductScroll = () => {
   const observer = useRef<IntersectionObserver | null>(null);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useInfiniteQuery({
       queryKey: ["all-products"],
-      queryFn: fetchAllProducts,
+      queryFn: ({ pageParam }) => fetchAllProducts({ pageParam }),
       getNextPageParam: (lastPage) => lastPage.nextSkip,
       initialPageParam: 0,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
   const allProducts = data?.pages.flatMap((page) => page.products) ?? [];
@@ -33,47 +33,40 @@ const ProductScroll = () => {
     [isFetchingNextPage, hasNextPage, fetchNextPage]
   );
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {allProducts.map((product, i) => {
-        const isLast = i === allProducts.length - 1;
-        return (
-          <div
-            key={product.id}
-            ref={isLast ? lastProductRef : null}
-            className="border rounded-2xl p-4 shadow hover:shadow-lg transition"
-          >
-            <Link href={`/products/${product.id}`}>
-              <div>
-                <div className="relative w-full h-48 mb-4">
-                  <Image
-                    src={product.thumbnail}
-                    alt={product.title}
-                    layout="fill"
-                    objectFit="cover"
-                    className="rounded-xl"
-                  />
-                </div>
-                <h2 className="text-lg font-semibold truncate">
-                  {product.title}
-                </h2>
-                <p className="text-sm text-gray-500 truncate">
-                  {product.brand}
-                </p>
-                <p className="text-sm">${product.price}</p>
-                <p className="text-xs text-yellow-600">⭐ {product.rating}</p>
-                <p className="text-xs text-red-500">Stock: {product.stock}</p>
-              </div>
-            </Link>
-          </div>
-        );
-      })}
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-6">All Products</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {allProducts.map((product, i) => {
+          const isLast = i === allProducts.length - 1;
+          return (
+            <div key={product.id} ref={isLast ? lastProductRef : null}>
+              <ProductCard
+                product={product}
+                showDescription={false}
+                showRating={true}
+              />
+            </div>
+          );
+        })}
+      </div>
       {isFetchingNextPage && (
-        <div className="text-center mt-6">Loading more products...</div>
+        <div className="flex justify-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
       )}
-      {!hasNextPage && (
-        <div className="text-center mt-6 text-gray-500">No more products.</div>
+      {!hasNextPage && allProducts.length > 0 && (
+        <div className="text-center mt-6 text-gray-500">
+          No more products to load.
+        </div>
       )}
     </div>
   );
