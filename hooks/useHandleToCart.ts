@@ -6,7 +6,6 @@ export const useHandleToCart = () => {
   const handleAddToCart = async (productId: string, quantity: number = 1) => {
     try {
       await mutation.mutateAsync({
-        userId: 1, // Placeholder - will be replaced with actual user ID from Firebase
         productId: parseInt(productId),
         quantity,
       });

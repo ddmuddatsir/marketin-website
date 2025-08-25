@@ -1,54 +1,76 @@
 import { CartResponse } from "@/types/cart";
 import axios from "axios";
 
+const API_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? process.env.NEXTAUTH_URL
+    : "http://localhost:3001";
+
 // Post add productid to cart product
 export const addToCart = async ({
-  userId,
   productId,
   quantity,
 }: {
-  userId: number;
   productId: number;
   quantity: number;
 }) => {
-  const res = await axios.post("https://dummyjson.com/carts/add", {
-    userId,
-    products: [
-      {
-        id: productId,
-        quantity,
+  const res = await axios.post(
+    `${API_BASE_URL}/api/cart`,
+    {
+      productId,
+      quantity,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
       },
-    ],
-  });
+      withCredentials: true, // Important: This ensures cookies are sent
+    }
+  );
 
   return res.data;
 };
 
 // Get productid to cart product by id
 export const fetchCartByUser = async (): Promise<CartResponse> => {
-  const { data } = await axios.get(`https://dummyjson.com/carts/user/6`);
+  const { data } = await axios.get(`${API_BASE_URL}/api/cart`, {
+    withCredentials: true, // Important: This ensures cookies are sent
+  });
   return data;
 };
 
 // Update product quantity in cart
 export const updateCart = async ({
-  cartId,
-  productId,
+  cartItemId,
   quantity,
 }: {
-  cartId: number;
-  productId: number;
+  cartItemId: string;
   quantity: number;
 }) => {
-  const { data } = await axios.put(`https://dummyjson.com/carts/${cartId}`, {
-    merge: true,
-    products: [{ id: productId, quantity }],
-  });
+  const { data } = await axios.put(
+    `${API_BASE_URL}/api/cart/${cartItemId}`,
+    {
+      quantity,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      withCredentials: true, // Important: This ensures cookies are sent
+    }
+  );
   return data;
 };
 
 // Delete productid in cart
-export const deleteCartById = async (cartId: number): Promise<CartResponse> => {
-  const { data } = await axios.delete(`https://dummyjson.com/carts/${cartId}`);
+export const deleteCartById = async (
+  cartItemId: string
+): Promise<CartResponse> => {
+  const { data } = await axios.delete(
+    `${API_BASE_URL}/api/cart/${cartItemId}`,
+    {
+      withCredentials: true, // Important: This ensures cookies are sent
+    }
+  );
   return data;
 };

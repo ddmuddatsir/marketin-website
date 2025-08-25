@@ -17,7 +17,7 @@ export async function DELETE(
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -71,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

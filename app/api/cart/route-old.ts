@@ -116,13 +116,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const { productId, quantity = 1 } = body;
+    const { productId, quantity = 1, price, name, image } = body;
 
     if (!productId) {
       return NextResponse.json(
@@ -132,12 +132,6 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("➕ Adding to cart:", { userId, productId, quantity });
-
-    // Fetch product data first to get price and name
-    const product = await fetchProductFromDummyJSON(productId);
-    if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
 
     // Check if item already exists in cart
     const cartRef = adminDb.collection("carts");
@@ -163,9 +157,9 @@ export async function POST(req: NextRequest) {
         userId,
         productId: productId.toString(),
         quantity,
-        price: product.price || 0,
-        name: product.title || "Unknown Product",
-        image: product.thumbnail || null,
+        price: price || 0,
+        name: name || "Unknown Product",
+        image: image || null,
         addedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -173,16 +167,7 @@ export async function POST(req: NextRequest) {
       console.log("✅ Added new cart item");
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Product added to cart successfully",
-      product: {
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        thumbnail: product.thumbnail,
-      },
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Error adding to cart:", error);
     return NextResponse.json(
@@ -204,7 +189,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
