@@ -51,8 +51,12 @@ export async function GET(req: NextRequest) {
 
     const userId = await verifyNextAuthToken(req);
     if (!userId) {
-      console.error("❌ Unauthorized - no valid token");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.log("🚪 No authenticated user - returning empty cart for guest");
+      return NextResponse.json({
+        items: [],
+        total: 0,
+        count: 0,
+      });
     }
 
     console.log("🔍 Getting cart for user:", userId);
@@ -118,7 +122,14 @@ export async function POST(req: NextRequest) {
 
     const userId = await verifyNextAuthToken(req);
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.log("🚪 Guest user trying to add to cart - rejecting");
+      return NextResponse.json(
+        {
+          error: "Login required",
+          message: "Please login to add items to cart",
+        },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();

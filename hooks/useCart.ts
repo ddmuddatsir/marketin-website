@@ -54,12 +54,13 @@ export function useCart() {
     }
   };
 
-  // Load from Firebase
+  // Load from Firebase (works for both authenticated and guest users)
   const loadFromFirebase = useCallback(async () => {
-    if (!user) return;
-
     try {
-      console.log("🔄 Loading cart from Firebase for user:", user.id);
+      console.log(
+        "🔄 Loading cart from Firebase for user:",
+        user?.id || "guest"
+      );
       const response = await fetch("/api/cart", {
         headers: {
           "Content-Type": "application/json",
@@ -72,8 +73,10 @@ export function useCart() {
         console.log("✅ Firebase cart loaded:", data);
         setCart(data);
 
-        // Sync to localStorage
-        saveToLocalStorage(data.items);
+        // Sync to localStorage if items exist
+        if (data.items && data.items.length > 0) {
+          saveToLocalStorage(data.items);
+        }
       } else {
         console.log("📱 Firebase cart not found, using localStorage");
         loadFromLocalStorage();
@@ -89,21 +92,14 @@ export function useCart() {
     if (authLoading) return;
 
     setLoading(true);
-    if (user) {
-      loadFromFirebase().finally(() => setLoading(false));
-    } else {
-      loadFromLocalStorage();
-      setLoading(false);
-    }
+    // Load from Firebase for both authenticated and guest users
+    loadFromFirebase().finally(() => setLoading(false));
   }, [user, authLoading, loadFromFirebase]);
 
   const fetchCart = useCallback(async () => {
-    if (user) {
-      await loadFromFirebase();
-    } else {
-      loadFromLocalStorage();
-    }
-  }, [user, loadFromFirebase]);
+    // Always load from Firebase (supports both authenticated and guest users)
+    await loadFromFirebase();
+  }, [loadFromFirebase]);
 
   const addToCart = async (productId: string, quantity = 1) => {
     try {
