@@ -81,11 +81,28 @@ export function useCart() {
           count: data.count || 0,
         };
 
-        setCart(cartData);
-
-        // Sync to localStorage if items exist
-        if (cartData.items && cartData.items.length > 0) {
+        // Only set Firebase data if it has items, otherwise keep localStorage data
+        if (cartData.items.length > 0) {
+          console.log(
+            "📦 Using Firebase cart data with",
+            cartData.items.length,
+            "items"
+          );
+          setCart(cartData);
+          // Sync to localStorage if items exist
           saveToLocalStorage(cartData.items);
+        } else {
+          // Firebase is empty, check localStorage for guest cart data
+          console.log("📱 Firebase cart empty, checking localStorage");
+          const stored = localStorage.getItem(CART_STORAGE_KEY);
+          if (stored) {
+            console.log("💾 Using localStorage data instead of empty Firebase");
+            loadFromLocalStorage();
+          } else {
+            // Both Firebase and localStorage are empty
+            console.log("📭 Both Firebase and localStorage are empty");
+            setCart(cartData);
+          }
         }
       } else {
         console.log(
@@ -144,8 +161,8 @@ export function useCart() {
         userId: user?.id || "guest",
       };
 
-      if (user) {
-        // Save to Firebase
+      // Try Firebase first, fallback to localStorage if authentication fails
+      try {
         const response = await fetch("/api/cart", {
           method: "POST",
           headers: {
@@ -162,7 +179,22 @@ export function useCart() {
         });
 
         if (response.ok) {
+          console.log("✅ Item added to Firebase cart successfully");
           await fetchCart();
+          showSuccess(
+            "Added to Cart! 🛒",
+            `${quantity} item${quantity > 1 ? "s" : ""} added successfully`,
+            {
+              label: "View Cart",
+              onClick: () => router.push("/cart"),
+            }
+          );
+          return;
+        } else if (response.status === 401) {
+          console.log(
+            "🔄 Firebase requires authentication, using localStorage fallback"
+          );
+          // Continue to localStorage fallback below
         } else {
           const errorData = await response.json().catch(() => ({}));
           console.error("Add to cart failed:", response.status, errorData);
@@ -170,33 +202,41 @@ export function useCart() {
             errorData.message || errorData.error || "Failed to add to cart"
           );
         }
-      } else {
-        // Save to localStorage
-        const currentItems = cart?.items || [];
-        const existingItemIndex = currentItems.findIndex(
-          (item) => item.productId === productId.toString()
+      } catch (fetchError) {
+        console.log(
+          "🔄 Firebase request failed, using localStorage fallback:",
+          fetchError
         );
-
-        let updatedItems;
-        if (existingItemIndex !== -1) {
-          updatedItems = [...currentItems];
-          updatedItems[existingItemIndex].quantity += quantity;
-        } else {
-          updatedItems = [...currentItems, newItem];
-        }
-
-        const total = updatedItems.reduce(
-          (sum, item) => sum + (item.price || 0) * item.quantity,
-          0
-        );
-        const count = updatedItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-
-        setCart({ items: updatedItems, total, count });
-        saveToLocalStorage(updatedItems);
+        // Continue to localStorage fallback below
       }
+
+      // localStorage fallback (for guest users or when Firebase fails)
+      console.log("💾 Adding item to localStorage cart");
+      const currentItems = cart?.items || [];
+      const existingItemIndex = currentItems.findIndex(
+        (item) => item.productId === productId.toString()
+      );
+
+      let updatedItems;
+      if (existingItemIndex !== -1) {
+        updatedItems = [...currentItems];
+        updatedItems[existingItemIndex].quantity += quantity;
+        console.log(
+          `📦 Updated existing item quantity: ${updatedItems[existingItemIndex].quantity}`
+        );
+      } else {
+        updatedItems = [...currentItems, newItem];
+        console.log("📦 Added new item to localStorage cart");
+      }
+
+      const total = updatedItems.reduce(
+        (sum, item) => sum + (item.price || 0) * item.quantity,
+        0
+      );
+      const count = updatedItems.reduce((sum, item) => sum + item.quantity, 0);
+
+      setCart({ items: updatedItems, total, count });
+      saveToLocalStorage(updatedItems);
 
       showSuccess(
         "Added to Cart! 🛒",
