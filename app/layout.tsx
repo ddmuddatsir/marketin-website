@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { Providers } from "./providers";
 import ToastContainer from "@/components/ui/ToastContainer";
+import { WishlistStatus } from "@/components/wishlist/WishlistStatus";
 
 // Force dynamic rendering for all pages
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export default function RootLayout({
               {children}
               <Footer />
               <ToastContainer />
+              <WishlistStatus />
             </ToastProvider>
           </AuthProvider>
         </Providers>

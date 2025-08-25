@@ -3,13 +3,12 @@ import { adminDb } from "@/lib/firebase-admin";
 import { verifyToken } from "@/lib/verify-token";
 import { Product } from "@/types/product";
 import { externalApiClient } from "@/lib/api/client";
-import { FieldValue } from "firebase-admin/firestore";
 
 interface WishlistItem {
   id: string;
   userId: string;
   productId: string;
-  addedAt: FieldValue | Date | null;
+  addedAt: Timestamp | null;
   product?: Product | null;
 }
 
@@ -34,16 +33,16 @@ export async function GET(req: NextRequest) {
   try {
     console.log("🔍 GET /api/wishlist - Request received");
 
-    // Check Firebase Admin availability
-    if (!adminDb) {
-      console.error("❌ Firebase Admin not configured");
+    // Check Firebase availability
+    if (!db) {
+      console.error("❌ Firebase not configured");
       return NextResponse.json(
-        { error: "Firebase Admin not configured" },
+        { error: "Firebase not configured" },
         { status: 503 }
       );
     }
 
-    console.log("✅ Firebase Admin DB available");
+    console.log("✅ Firebase DB available");
 
     const userId = await verifyToken(req);
     if (!userId) {
@@ -53,12 +52,11 @@ export async function GET(req: NextRequest) {
 
     console.log("✅ Authenticated user:", userId);
 
-    // Query Firestore Admin untuk wishlist items
+    // Query Firestore untuk wishlist items
     try {
-      const wishlistRef = adminDb.collection("wishlists");
-      const querySnapshot = await wishlistRef
-        .where("userId", "==", userId)
-        .get();
+      const wishlistRef = collection(db, "wishlists");
+      const q = query(wishlistRef, where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
 
       console.log("📊 Found wishlist documents:", querySnapshot.size);
 
@@ -66,12 +64,9 @@ export async function GET(req: NextRequest) {
 
       // Collect all wishlist items
       querySnapshot.forEach((docSnapshot) => {
-        const data = docSnapshot.data();
         const wishlistData = {
           id: docSnapshot.id,
-          userId: data.userId,
-          productId: data.productId,
-          addedAt: data.addedAt ? data.addedAt.toDate() : null,
+          ...docSnapshot.data(),
         } as WishlistItem;
         console.log("📝 Wishlist item:", wishlistData);
         wishlistItems.push(wishlistData);
@@ -85,7 +80,7 @@ export async function GET(req: NextRequest) {
           try {
             const product = await fetchProductFromDummyJSON(item.productId);
             console.log(
-              "📦 Fetched product for",
+              "� Fetched product for",
               item.productId,
               ":",
               product?.title
@@ -143,11 +138,11 @@ export async function POST(req: NextRequest) {
   try {
     console.log("➕ POST /api/wishlist - Request received");
 
-    // Check Firebase Admin availability
-    if (!adminDb) {
-      console.error("❌ Firebase Admin not configured");
+    // Check Firebase availability
+    if (!db) {
+      console.error("❌ Firebase not configured");
       return NextResponse.json(
-        { error: "Firebase Admin not configured" },
+        { error: "Firebase not configured" },
         { status: 503 }
       );
     }
@@ -170,27 +165,29 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if item already exists in wishlist
-    const wishlistRef = adminDb.collection("wishlists");
-    const existingQuery = await wishlistRef
-      .where("userId", "==", userId)
-      .where("productId", "==", productId.toString())
-      .get();
+    const wishlistRef = collection(db, "wishlists");
+    const q = query(
+      wishlistRef,
+      where("userId", "==", userId),
+      where("productId", "==", productId.toString())
+    );
+    const existingSnapshot = await getDocs(q);
 
-    if (!existingQuery.empty) {
+    if (!existingSnapshot.empty) {
       return NextResponse.json(
         { error: "Item already in wishlist" },
         { status: 409 }
       );
     }
 
-    // Add to Firebase Firestore Admin
+    // Add to Firebase Firestore
     const newWishlistItem = {
       userId,
       productId: productId.toString(),
-      addedAt: FieldValue.serverTimestamp(),
+      addedAt: serverTimestamp(),
     };
 
-    const docRef = await wishlistRef.add(newWishlistItem);
+    const docRef = await addDoc(wishlistRef, newWishlistItem);
 
     // Fetch product details untuk response
     const product = await fetchProductFromDummyJSON(productId);
@@ -213,10 +210,10 @@ export async function POST(req: NextRequest) {
 // DELETE - Remove item from wishlist
 export async function DELETE(req: NextRequest) {
   try {
-    // Check Firebase Admin availability
-    if (!adminDb) {
+    // Check Firebase availability
+    if (!db) {
       return NextResponse.json(
-        { error: "Firebase Admin not configured" },
+        { error: "Firebase not configured" },
         { status: 503 }
       );
     }
@@ -237,11 +234,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Find and delete the wishlist item
-    const wishlistRef = adminDb.collection("wishlists");
-    const querySnapshot = await wishlistRef
-      .where("userId", "==", userId)
-      .where("productId", "==", productId)
-      .get();
+    const wishlistRef = collection(db, "wishlists");
+    const q = query(
+      wishlistRef,
+      where("userId", "==", userId),
+      where("productId", "==", productId)
+    );
+    const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
       return NextResponse.json(
@@ -251,12 +250,10 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete all matching documents (should be only one)
-    const batch = adminDb.batch();
-    querySnapshot.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    await batch.commit();
+    const deletePromises = querySnapshot.docs.map((docSnapshot) =>
+      deleteDoc(doc(db!, "wishlists", docSnapshot.id))
+    );
+    await Promise.all(deletePromises);
 
     return NextResponse.json({
       message: "Item removed from wishlist successfully",
@@ -265,6 +262,64 @@ export async function DELETE(req: NextRequest) {
     console.error("Error removing from wishlist:", error);
     return NextResponse.json(
       { error: "Failed to remove item from wishlist" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Sync entire wishlist (for offline sync)
+export async function PUT(req: NextRequest) {
+  try {
+    if (!db) {
+      return NextResponse.json(
+        { error: "Firebase not configured" },
+        { status: 503 }
+      );
+    }
+
+    const userId = await verifyToken(req);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { items } = await req.json();
+
+    if (!Array.isArray(items)) {
+      return NextResponse.json(
+        { error: "Items must be an array" },
+        { status: 400 }
+      );
+    }
+
+    // Clear existing wishlist items for this user
+    const wishlistRef = collection(db, "wishlists");
+    const q = query(wishlistRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+
+    // Delete existing items
+    const deletePromises = querySnapshot.docs.map((docSnapshot) =>
+      deleteDoc(doc(db!, "wishlists", docSnapshot.id))
+    );
+    await Promise.all(deletePromises);
+
+    // Add new items
+    const addPromises = items.map((item: WishlistItem) =>
+      addDoc(collection(db!, "wishlists"), {
+        userId,
+        productId: item.productId,
+        addedAt: serverTimestamp(),
+      })
+    );
+    await Promise.all(addPromises);
+
+    return NextResponse.json({
+      message: "Wishlist synced successfully",
+      count: items.length,
+    });
+  } catch (error) {
+    console.error("Error syncing wishlist:", error);
+    return NextResponse.json(
+      { error: "Failed to sync wishlist" },
       { status: 500 }
     );
   }

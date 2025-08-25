@@ -28,9 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // For development, create a mock user if Firebase is not configured
       if (process.env.NODE_ENV === "development") {
         const mockUser = {
-          uid: "dev-user-123",
-          email: "dev@example.com",
-          displayName: "Development User",
+          uid: "test-user-id", // Use same ID as in API for consistency
+          email: "test@example.com",
+          displayName: "Test User",
           photoURL: null,
           emailVerified: true,
           getIdToken: async () => "test-token",
@@ -115,6 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Clear wishlist from localStorage when signing out
+      localStorage.removeItem("wishlist_items");
+
       // Handle development mode with mock user
       if (process.env.NODE_ENV === "development" && !auth) {
         console.log("Development mode: signing out mock user");
