@@ -1,13 +1,15 @@
 export interface CartItem {
   id: string;
-  cartId: string;
+  userId?: string;
+  cartId?: string;
   productId: string;
   quantity: number;
   price: number;
   name?: string;
   image?: string;
-  createdAt: string;
-  updatedAt: string;
+  addedAt?: Date | string;
+  createdAt?: string;
+  updatedAt?: string;
   product?: {
     id: string;
     title: string;
@@ -22,11 +24,13 @@ export interface CartItem {
 }
 
 export interface Cart {
-  id: string;
-  userId: string;
+  id?: string;
+  userId?: string;
   items: CartItem[];
-  createdAt: Date;
-  updatedAt: Date;
+  total?: number;
+  count?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface TabContentProps {

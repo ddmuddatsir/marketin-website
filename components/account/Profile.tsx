@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { userAPI } from "@/lib/api/client";
 
 export function Profile() {
   const { user } = useAuth();
@@ -23,7 +22,19 @@ export function Profile() {
     setLoading(true);
 
     try {
-      await userAPI.updateProfile(formData);
+      const response = await fetch("/api/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update profile");
+      }
+
       setIsEditing(false);
       toast.success("Profile updated successfully");
     } catch (error) {

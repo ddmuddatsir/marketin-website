@@ -4,7 +4,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { userAPI } from "@/lib/api/client";
 
 export const profileSchema = z
   .object({
@@ -70,7 +69,19 @@ export function useProfileForm() {
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      await userAPI.updateProfile(data);
+      const response = await fetch("/api/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update profile");
+      }
+
       toast.success("Profile updated successfully");
     } catch (error) {
       toast.error("Failed to update profile");

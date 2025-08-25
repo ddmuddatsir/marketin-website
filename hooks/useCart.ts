@@ -1,41 +1,113 @@
 import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useRouter } from "next/navigation";
-import { Cart } from "@/types/cart";
-import { cartAPI, externalApiClient } from "@/lib/api/client";
+import { Cart, CartItem } from "@/types/cart";
+import { externalApiClient } from "@/lib/api/client";
+
+const CART_STORAGE_KEY = "cart_items";
 
 export function useCart() {
   const { user, loading: authLoading } = useAuth();
   const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const fetchCart = useCallback(async () => {
-    if (!user || authLoading) return;
+  // Load from localStorage
+  const loadFromLocalStorage = () => {
+    try {
+      console.log("💾 Loading cart from localStorage");
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      if (stored) {
+        const parsedItems = JSON.parse(stored) as CartItem[];
+        console.log("📱 Found localStorage cart items:", parsedItems.length);
+
+        const items = parsedItems.map((item) => ({
+          ...item,
+          addedAt: new Date(item.addedAt as string | number | Date),
+        }));
+
+        const total = items.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
+        );
+        const count = items.reduce((sum, item) => sum + item.quantity, 0);
+
+        setCart({ items, total, count });
+      } else {
+        console.log("📱 No localStorage cart data found");
+        setCart({ items: [], total: 0, count: 0 });
+      }
+    } catch (error) {
+      console.error("❌ Error loading cart from localStorage:", error);
+      setCart({ items: [], total: 0, count: 0 });
+    }
+  };
+
+  // Save to localStorage
+  const saveToLocalStorage = (items: CartItem[]) => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error("Error saving cart to localStorage:", error);
+    }
+  };
+
+  // Load from Firebase
+  const loadFromFirebase = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      console.log("🔄 Loading cart from Firebase for user:", user.id);
+      const response = await fetch("/api/cart", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Firebase cart loaded:", data);
+        setCart(data);
+
+        // Sync to localStorage
+        saveToLocalStorage(data.items);
+      } else {
+        console.log("📱 Firebase cart not found, using localStorage");
+        loadFromLocalStorage();
+      }
+    } catch (error) {
+      console.error("❌ Error loading cart from Firebase:", error);
+      loadFromLocalStorage();
+    }
+  }, [user]);
+
+  // Initial load
+  useEffect(() => {
+    if (authLoading) return;
 
     setLoading(true);
-    try {
-      const res = await cartAPI.get();
-      setCart(res.data);
-    } catch (error) {
-      console.error("Failed to fetch cart:", error);
-      setCart(null);
-    } finally {
+    if (user) {
+      loadFromFirebase().finally(() => setLoading(false));
+    } else {
+      loadFromLocalStorage();
       setLoading(false);
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, loadFromFirebase]);
+
+  const fetchCart = useCallback(async () => {
+    if (user) {
+      await loadFromFirebase();
+    } else {
+      loadFromLocalStorage();
+    }
+  }, [user, loadFromFirebase]);
 
   const addToCart = async (productId: string, quantity = 1) => {
-    if (!user) {
-      showError("Authentication Required", "Please login to add items to cart");
-      return;
-    }
-
     try {
-      // First, fetch product details from DummyJSON API
+      // Fetch product details from DummyJSON API
       const productResponse = await externalApiClient.get(
         `/products/${productId}`
       );
@@ -49,16 +121,68 @@ export function useCart() {
         return;
       }
 
-      // Send complete product data to cart API
-      await cartAPI.add({
+      const newItem: CartItem = {
+        id: Date.now().toString(),
         productId: productId.toString(),
         quantity,
         price: product.price,
         name: product.title,
         image: product.thumbnail || product.images?.[0],
-      });
+        addedAt: new Date(),
+        product: product,
+        userId: user?.id || "guest",
+      };
 
-      // Show success notification with action
+      if (user) {
+        // Save to Firebase
+        const response = await fetch("/api/cart", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            productId: productId.toString(),
+            quantity,
+            price: product.price,
+            name: product.title,
+            image: product.thumbnail || product.images?.[0],
+          }),
+        });
+
+        if (response.ok) {
+          await fetchCart();
+        } else {
+          throw new Error("Failed to add to cart");
+        }
+      } else {
+        // Save to localStorage
+        const currentItems = cart?.items || [];
+        const existingItemIndex = currentItems.findIndex(
+          (item) => item.productId === productId.toString()
+        );
+
+        let updatedItems;
+        if (existingItemIndex !== -1) {
+          updatedItems = [...currentItems];
+          updatedItems[existingItemIndex].quantity += quantity;
+        } else {
+          updatedItems = [...currentItems, newItem];
+        }
+
+        const total = updatedItems.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
+        );
+        const count = updatedItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
+
+        setCart({ items: updatedItems, total, count });
+        saveToLocalStorage(updatedItems);
+      }
+
       showSuccess(
         "Added to Cart! 🛒",
         `${quantity} item${quantity > 1 ? "s" : ""} added successfully`,
@@ -67,26 +191,162 @@ export function useCart() {
           onClick: () => router.push("/cart"),
         }
       );
-
-      fetchCart();
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        showError(
-          "Authentication Required",
-          "Please login to add items to cart"
-        );
-      } else if (axios.isAxiosError(error) && error.response?.status === 400) {
-        showError(
-          "Invalid Product",
-          "The product information is invalid. Please try again."
-        );
+      showError(
+        "Failed to Add Item",
+        "There was an error adding the item to your cart. Please try again."
+      );
+    }
+  };
+
+  const removeFromCart = async (productId: string) => {
+    try {
+      if (user) {
+        // Find item in Firebase and remove
+        const item = cart?.items.find((item) => item.productId === productId);
+        if (item?.id) {
+          const response = await fetch(`/api/cart/${item.id}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+
+          if (response.ok) {
+            await fetchCart();
+          } else {
+            throw new Error("Failed to remove from cart");
+          }
+        }
       } else {
-        showError(
-          "Failed to Add Item",
-          "There was an error adding the item to your cart. Please try again."
+        // Remove from localStorage
+        const currentItems = cart?.items || [];
+        const updatedItems = currentItems.filter(
+          (item) => item.productId !== productId
         );
+
+        const total = updatedItems.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
+        );
+        const count = updatedItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
+
+        setCart({ items: updatedItems, total, count });
+        saveToLocalStorage(updatedItems);
       }
+
+      showSuccess("Item Removed", "Item removed from cart successfully");
+    } catch (error) {
+      console.error("Failed to remove from cart:", error);
+      showError("Failed to Remove", "Error removing item from cart");
+    }
+  };
+
+  const increaseQuantity = async (productId: string) => {
+    try {
+      if (user) {
+        const item = cart?.items.find((item) => item.productId === productId);
+        if (item?.id) {
+          const response = await fetch(`/api/cart/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ quantity: item.quantity + 1 }),
+          });
+
+          if (response.ok) {
+            await fetchCart();
+          }
+        }
+      } else {
+        const currentItems = cart?.items || [];
+        const updatedItems = currentItems.map((item) =>
+          item.productId === productId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+
+        const total = updatedItems.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
+        );
+        const count = updatedItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
+
+        setCart({ items: updatedItems, total, count });
+        saveToLocalStorage(updatedItems);
+      }
+    } catch (error) {
+      console.error("Failed to increase quantity:", error);
+    }
+  };
+
+  const decreaseQuantity = async (productId: string) => {
+    try {
+      if (user) {
+        const item = cart?.items.find((item) => item.productId === productId);
+        if (item?.id && item.quantity > 1) {
+          const response = await fetch(`/api/cart/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ quantity: item.quantity - 1 }),
+          });
+
+          if (response.ok) {
+            await fetchCart();
+          }
+        }
+      } else {
+        const currentItems = cart?.items || [];
+        const updatedItems = currentItems.map((item) =>
+          item.productId === productId && item.quantity > 1
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        );
+
+        const total = updatedItems.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
+        );
+        const count = updatedItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
+
+        setCart({ items: updatedItems, total, count });
+        saveToLocalStorage(updatedItems);
+      }
+    } catch (error) {
+      console.error("Failed to decrease quantity:", error);
+    }
+  };
+
+  const clearCart = async () => {
+    try {
+      if (user) {
+        const response = await fetch("/api/cart", {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          setCart({ items: [], total: 0, count: 0 });
+        }
+      } else {
+        setCart({ items: [], total: 0, count: 0 });
+        localStorage.removeItem(CART_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error("Failed to clear cart:", error);
     }
   };
 
@@ -97,149 +357,35 @@ export function useCart() {
     }
 
     try {
-      // Show success notification for order
       showSuccess(
-        "Order Initiated! 🚀",
-        `${quantity} item${
+        "Proceeding to Checkout",
+        `Redirecting to checkout page with ${quantity} item${
           quantity > 1 ? "s" : ""
-        } ready for checkout. Redirecting...`,
+        }...`,
         {
-          label: "Continue Shopping",
-          onClick: () => router.push("/products"),
+          label: "Continue",
+          onClick: () => router.push("/checkout"),
         }
       );
 
-      // Redirect to checkout with specific product
       router.push(`/checkout?product=${productId}&quantity=${quantity}`);
       return true;
     } catch (error) {
-      console.error("Failed to initiate order:", error);
-      showError(
-        "Failed to Process Order",
-        "There was an error processing your order. Please try again."
-      );
+      console.error("Failed to proceed with order:", error);
+      showError("Order Failed", "There was an error processing your order");
       return false;
-    }
-  };
-
-  const removeFromCart = async (productId: string) => {
-    if (!user) {
-      alert("Please login to remove items from cart");
-      return;
-    }
-
-    try {
-      await cartAPI.remove(productId);
-      showSuccess("Removed from Cart", "Item removed successfully");
-      fetchCart();
-    } catch (error) {
-      console.error("Failed to remove from cart:", error);
-      if (axios.isAxiosError(error) && error.response?.status === 401) {
-        showError(
-          "Authentication Required",
-          "Please login to remove items from cart"
-        );
-      } else {
-        showError(
-          "Failed to Remove Item",
-          "There was an error removing the item from your cart."
-        );
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setCart(null);
-      return;
-    }
-
-    const loadCart = async () => {
-      setLoading(true);
-      try {
-        const res = await cartAPI.get();
-        setCart(res.data);
-      } catch (error) {
-        console.error("Failed to fetch cart:", error);
-        setCart(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCart();
-  }, [user, authLoading]); // Hanya depend pada user dan authLoading
-
-  const updateQuantity = async (productId: string, quantity: number) => {
-    if (!user) {
-      showError("Authentication Required", "Please login to update cart");
-      return;
-    }
-
-    if (quantity <= 0) {
-      await removeFromCart(productId);
-      return;
-    }
-
-    try {
-      // First, fetch current cart item details
-      const currentCartItem = cart?.items?.find(
-        (item) => item.productId === productId
-      );
-      if (!currentCartItem) {
-        showError("Item Not Found", "The item is not in your cart anymore.");
-        return;
-      }
-
-      // Send update request with current product details
-      await cartAPI.add({
-        productId: productId.toString(),
-        quantity,
-        price: currentCartItem.product?.price || currentCartItem.price,
-        name: currentCartItem.product?.title || currentCartItem.name,
-        image: currentCartItem.product?.thumbnail || currentCartItem.image,
-      });
-
-      fetchCart();
-    } catch (error) {
-      console.error("Failed to update quantity:", error);
-      showError(
-        "Failed to Update Quantity",
-        "There was an error updating the quantity. Please try again."
-      );
-    }
-  };
-
-  const increaseQuantity = async (productId: string) => {
-    const currentItem = cart?.items?.find(
-      (item) => item.productId === productId
-    );
-    if (currentItem) {
-      await updateQuantity(productId, currentItem.quantity + 1);
-    }
-  };
-
-  const decreaseQuantity = async (productId: string) => {
-    const currentItem = cart?.items?.find(
-      (item) => item.productId === productId
-    );
-    if (currentItem && currentItem.quantity > 1) {
-      await updateQuantity(productId, currentItem.quantity - 1);
-    } else if (currentItem) {
-      await removeFromCart(productId);
     }
   };
 
   return {
     cart,
     loading,
-    addToCart,
-    orderNow,
-    removeFromCart,
     fetchCart,
-    updateQuantity,
+    addToCart,
+    removeFromCart,
     increaseQuantity,
     decreaseQuantity,
+    clearCart,
+    orderNow,
   };
 }
