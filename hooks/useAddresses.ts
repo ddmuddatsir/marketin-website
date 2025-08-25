@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Address } from "@/types/user";
@@ -9,17 +9,36 @@ export function useAddresses() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchAddresses = useCallback(async () => {
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await addressesAPI.getAll();
-      setAddresses(response.data);
-    } catch (error) {
-      console.error("Error fetching addresses:", error);
-      setError("Failed to load addresses");
-      toast.error("Failed to load addresses");
+      // Only update state if request wasn't aborted
+      if (!abortControllerRef.current.signal.aborted) {
+        setAddresses(response.data);
+        setError(null);
+      }
+    } catch (error: any) {
+      // Don't show error if request was aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        console.error("Error fetching addresses:", error);
+        setError("Failed to load addresses");
+        toast.error("Failed to load addresses");
+      }
     } finally {
-      setLoading(false);
+      // Only update loading if request wasn't aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -28,7 +47,16 @@ export function useAddresses() {
       fetchAddresses();
     } else {
       setLoading(false);
+      setAddresses([]);
+      setError(null);
     }
+
+    // Cleanup function to abort ongoing requests
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [user, fetchAddresses]);
 
   const addAddress = async (addressData: Omit<Address, "id">) => {

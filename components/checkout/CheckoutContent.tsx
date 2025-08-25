@@ -29,18 +29,35 @@ export function CheckoutContent() {
   } = useCheckout();
 
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Handle authentication redirect
+  // Handle authentication redirect with sessionStorage to prevent loops
   useEffect(() => {
-    if (!authLoading && !user && !hasRedirected) {
-      setHasRedirected(true);
-      router.replace("/login?callbackUrl=" + encodeURIComponent("/checkout"));
+    const redirectKey = "checkout-redirect-attempted";
+    const hasAttemptedRedirect = sessionStorage.getItem(redirectKey);
+
+    if (!authLoading && !user && !hasAttemptedRedirect && !isRedirecting) {
+      setIsRedirecting(true);
+      sessionStorage.setItem(redirectKey, "true");
+      console.log("🔄 Redirecting to login from checkout");
+
+      // Add small delay to prevent race condition
+      setTimeout(() => {
+        router.replace("/login?callbackUrl=" + encodeURIComponent("/checkout"));
+      }, 100);
     }
-  }, [authLoading, user, router, hasRedirected]);
+  }, [authLoading, user, router, isRedirecting]);
+
+  // Clear redirect tracking when user becomes available
+  useEffect(() => {
+    if (user) {
+      sessionStorage.removeItem("checkout-redirect-attempted");
+      setIsRedirecting(false);
+    }
+  }, [user]);
 
   // Loading states
-  if (authLoading) {
+  if (authLoading || isRedirecting) {
     return <CheckoutLoading />;
   }
 
