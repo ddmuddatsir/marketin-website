@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FaTrash } from "react-icons/fa";
 import { SafeImage } from "@/components/ui/SafeImage";
+import DebugCart from "./DebugCart";
 
 export default function Cart() {
   const { cart, loading, removeFromCart, increaseQuantity, decreaseQuantity } =
@@ -28,6 +29,10 @@ export default function Cart() {
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8">
       <h1 className="text-2xl font-bold mb-6 text-center">Shopping Cart</h1>
+
+      {/* Debug Component - Remove in production */}
+      <DebugCart />
+
       <div className="flex flex-col md:flex-row gap-8">
         {/* List Cart Items */}
         <div className="flex-1">

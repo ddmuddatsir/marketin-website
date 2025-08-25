@@ -68,24 +68,39 @@ export function useCart() {
         credentials: "include",
       });
 
+      console.log("📡 API Response status:", response.status);
+
       if (response.ok) {
         const data = await response.json();
-        console.log("✅ Firebase cart loaded:", data);
-        setCart(data);
+        console.log("✅ Firebase cart loaded successfully:", data);
+
+        // Ensure the data structure matches our Cart interface
+        const cartData = {
+          items: data.items || [],
+          total: data.total || 0,
+          count: data.count || 0,
+        };
+
+        setCart(cartData);
 
         // Sync to localStorage if items exist
-        if (data.items && data.items.length > 0) {
-          saveToLocalStorage(data.items);
+        if (cartData.items && cartData.items.length > 0) {
+          saveToLocalStorage(cartData.items);
         }
       } else {
-        console.log("📱 Firebase cart not found, using localStorage");
+        console.log(
+          "📱 Firebase cart response not ok, status:",
+          response.status
+        );
+        const errorData = await response.text();
+        console.log("Error response:", errorData);
         loadFromLocalStorage();
       }
     } catch (error) {
       console.error("❌ Error loading cart from Firebase:", error);
       loadFromLocalStorage();
     }
-  }, [user]);
+  }, [user]); // Remove user dependency since we handle both authenticated and guest users
 
   // Initial load
   useEffect(() => {
@@ -149,7 +164,11 @@ export function useCart() {
         if (response.ok) {
           await fetchCart();
         } else {
-          throw new Error("Failed to add to cart");
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Add to cart failed:", response.status, errorData);
+          throw new Error(
+            errorData.message || errorData.error || "Failed to add to cart"
+          );
         }
       } else {
         // Save to localStorage
