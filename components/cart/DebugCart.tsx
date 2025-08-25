@@ -10,31 +10,55 @@ export default function DebugCart() {
         id: "sample-1",
         productId: "1",
         quantity: 2,
-        price: 29.99,
-        name: "Sample Product 1",
-        image:
-          "https://dummyjson.com/image/400x400/008080/ffffff?text=Product+1",
+        price: 549,
+        name: "iPhone 9",
+        image: "https://cdn.dummyjson.com/product-images/1/thumbnail.jpg",
         addedAt: new Date(),
         userId: "guest",
         product: {
           id: "1",
-          title: "Sample Product 1",
-          price: 29.99,
-          image:
-            "https://dummyjson.com/image/400x400/008080/ffffff?text=Product+1",
-          thumbnail:
-            "https://dummyjson.com/image/400x400/008080/ffffff?text=Product+1",
+          title: "iPhone 9",
+          price: 549,
+          image: "https://cdn.dummyjson.com/product-images/1/thumbnail.jpg",
+          thumbnail: "https://cdn.dummyjson.com/product-images/1/thumbnail.jpg",
           images: [
-            "https://dummyjson.com/image/400x400/008080/ffffff?text=Product+1",
+            "https://cdn.dummyjson.com/product-images/1/1.jpg",
+            "https://cdn.dummyjson.com/product-images/1/2.jpg",
           ],
-          brand: "Sample Brand",
-          category: "electronics",
-          description: "Sample product for testing",
+          brand: "Apple",
+          category: "smartphones",
+          description: "An apple mobile which is nothing like apple",
+        },
+      },
+      {
+        id: "sample-2",
+        productId: "2",
+        quantity: 1,
+        price: 899,
+        name: "iPhone X",
+        image: "https://cdn.dummyjson.com/product-images/2/thumbnail.jpg",
+        addedAt: new Date(),
+        userId: "guest",
+        product: {
+          id: "2",
+          title: "iPhone X",
+          price: 899,
+          image: "https://cdn.dummyjson.com/product-images/2/thumbnail.jpg",
+          thumbnail: "https://cdn.dummyjson.com/product-images/2/thumbnail.jpg",
+          images: [
+            "https://cdn.dummyjson.com/product-images/2/1.jpg",
+            "https://cdn.dummyjson.com/product-images/2/2.jpg",
+          ],
+          brand: "Apple",
+          category: "smartphones",
+          description:
+            "SIM-Free, Model A19211 6.5-inch Super Retina HD display",
         },
       },
     ];
 
     localStorage.setItem("cart_items", JSON.stringify(sampleItems));
+    console.log("✅ Sample data added to localStorage:", sampleItems);
     window.location.reload();
   };
 
@@ -89,6 +113,18 @@ export default function DebugCart() {
     }
   };
 
+  const testDebugAPI = async () => {
+    try {
+      const response = await fetch("/api/debug-cart");
+      const result = await response.json();
+      console.log("Debug API result:", result);
+      alert(`Debug API Result:\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      console.error("Error testing debug API:", error);
+      alert("Error testing debug API: " + error);
+    }
+  };
+
   return (
     <div className="p-4 bg-gray-100 rounded mb-4">
       <h3 className="font-bold mb-2">Debug Cart</h3>
@@ -126,7 +162,14 @@ export default function DebugCart() {
         >
           Clear Firebase Data
         </button>
-      </div>{" "}
+        <button
+          onClick={testDebugAPI}
+          className="px-3 py-1 bg-gray-500 text-white rounded text-sm"
+        >
+          Test Debug API
+        </button>
+      </div>
+
       <details className="mt-2">
         <summary className="cursor-pointer text-sm text-gray-600">
           Show Cart Data
