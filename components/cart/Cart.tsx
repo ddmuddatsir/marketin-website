@@ -17,7 +17,32 @@ export default function Cart() {
     router.push("/checkout");
   };
 
-  if (loading) return <div className="p-8 text-center">Loading cart...</div>;
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-lg">Loading cart...</div>
+      </div>
+    );
+  }
+
+  // Debug logging
+  console.log("Cart component render:", { cart, loading });
+  console.log(
+    "Cart items:",
+    cart?.items?.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.image,
+      product: item.product
+        ? {
+            title: item.product.title,
+            image: item.product.image,
+            thumbnail: item.product.thumbnail,
+          }
+        : null,
+    }))
+  );
+
   if (!cart || cart.items.length === 0)
     return <div className="p-8 text-center">Your cart is empty.</div>;
 
@@ -45,10 +70,17 @@ export default function Cart() {
                 <div className="w-32 md:w-40 flex-shrink-0">
                   {item.product ? (
                     <div className="relative aspect-square">
-                      {item.product.image ? (
+                      {item.product.image ||
+                      item.product.thumbnail ||
+                      item.image ? (
                         <SafeImage
-                          src={item.product.image}
-                          alt={item.product.title}
+                          src={
+                            item.product.image ||
+                            item.product.thumbnail ||
+                            item.image ||
+                            ""
+                          }
+                          alt={item.product.title || item.name || "Product"}
                           fill
                           className="object-cover rounded"
                           sizes="(max-width: 768px) 128px, 160px"
@@ -61,6 +93,16 @@ export default function Cart() {
                         </div>
                       )}
                     </div>
+                  ) : item.image ? (
+                    <div className="relative aspect-square">
+                      <SafeImage
+                        src={item.image}
+                        alt={item.name || "Product"}
+                        fill
+                        className="object-cover rounded"
+                        sizes="(max-width: 768px) 128px, 160px"
+                      />
+                    </div>
                   ) : (
                     <div className="w-full h-full bg-gray-200 rounded flex items-center justify-center text-gray-400">
                       No Image
@@ -68,7 +110,7 @@ export default function Cart() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center gap-2">
-                  {item.product && (
+                  {item.product ? (
                     <div className="flex flex-col md:flex-row md:items-center gap-2 flex-1">
                       <div>
                         <div className="font-semibold line-clamp-1">
@@ -76,6 +118,17 @@ export default function Cart() {
                         </div>
                         <div className="text-sm text-gray-500">
                           ${item.product.price?.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 flex-1">
+                      <div>
+                        <div className="font-semibold line-clamp-1">
+                          {item.name || "Unknown Product"}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ${item.price?.toFixed(2) || "0.00"}
                         </div>
                       </div>
                     </div>

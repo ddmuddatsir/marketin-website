@@ -157,7 +157,10 @@ export function useCart() {
         name: product.title,
         image: product.thumbnail || product.images?.[0],
         addedAt: new Date(),
-        product: product,
+        product: {
+          ...product,
+          image: product.thumbnail || product.images?.[0], // Ensure image field is set
+        },
         userId: user?.id || "guest",
       };
 

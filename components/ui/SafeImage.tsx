@@ -32,8 +32,12 @@ export function SafeImage({
   const [imgSrc, setImgSrc] = useState(src);
   const [isError, setIsError] = useState(false);
 
+  // Debug logging
+  console.log("SafeImage render:", { src, imgSrc, isError, alt });
+
   const handleError = () => {
     if (!isError) {
+      console.log("SafeImage error for:", src, "falling back to:", fallbackSrc);
       setIsError(true);
       setImgSrc(fallbackSrc);
     }
