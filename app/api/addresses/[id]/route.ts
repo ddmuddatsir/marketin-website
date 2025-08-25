@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAddressById, updateAddress, deleteAddress } from "@/lib/firestore";
-import { verifyNextAuthToken } from "@/lib/verify-nextauth-token";
+import { verifyToken } from "@/lib/verify-token";
 
 // GET /api/addresses/[id] - Get address by ID
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
 
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -44,7 +44,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
 
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -98,7 +98,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
 
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

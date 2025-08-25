@@ -27,7 +27,7 @@ export function useAddresses() {
         setAddresses(response.data);
         setError(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't show error if request was aborted
       if (!abortControllerRef.current?.signal.aborted) {
         console.error("Error fetching addresses:", error);

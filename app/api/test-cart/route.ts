@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
-export async function POST(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function POST(_req: NextRequest) {
   try {
     console.log("🧪 Adding test cart data to Firebase");
 
@@ -61,7 +62,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function DELETE(_req: NextRequest) {
   try {
     console.log("🧹 Clearing all test cart data from Firebase");
 

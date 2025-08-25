@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 
-export async function GET(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_req: NextRequest) {
   try {
     console.log("🔍 Debug API called");
 

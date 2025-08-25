@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { verifyNextAuthToken } from "@/lib/verify-nextauth-token";
+import { verifyToken } from "@/lib/verify-token";
 
 // DELETE - Remove specific item from cart
 export async function DELETE(
@@ -17,7 +17,7 @@ export async function DELETE(
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -71,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

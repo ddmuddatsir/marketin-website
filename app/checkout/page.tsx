@@ -1,5 +1,6 @@
 "use client";
 import { Suspense } from "react";
+import { AuthGuard } from "@/components/checkout/AuthGuard";
 import { CheckoutContent } from "@/components/checkout/CheckoutContent";
 import { CheckoutSuspenseLoading } from "@/components/checkout/CheckoutLoading";
 
@@ -8,8 +9,10 @@ export const dynamic = "force-dynamic";
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<CheckoutSuspenseLoading />}>
-      <CheckoutContent />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={<CheckoutSuspenseLoading />}>
+        <CheckoutContent />
+      </Suspense>
+    </AuthGuard>
   );
 }

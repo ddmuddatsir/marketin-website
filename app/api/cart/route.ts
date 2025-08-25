@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
-import { verifyNextAuthToken } from "@/lib/verify-nextauth-token";
+import { verifyToken } from "@/lib/verify-token";
 import { Product } from "@/types/product";
 import { externalApiClient } from "@/lib/api/client";
 import { FieldValue } from "firebase-admin/firestore";
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     console.log("✅ Firebase Admin DB available");
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       console.log("🚪 No authenticated user - returning empty cart for guest");
       return NextResponse.json({
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       console.log("🚪 Guest user trying to add to cart - rejecting");
       return NextResponse.json(
@@ -215,7 +215,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

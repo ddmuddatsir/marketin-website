@@ -1,31 +1,30 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getUserAddresses, createAddress } from "@/lib/firestore";
-import { verifyNextAuthToken } from "@/lib/verify-nextauth-token";
+import { verifyToken } from "@/lib/verify-token";
 
-// GET /api/addresses - Get all addresses for the current user
+// GET: Retrieve user addresses
 export async function GET(req: NextRequest) {
   try {
-    const userId = await verifyNextAuthToken(req);
-
+    const userId = await verifyToken(req);
     if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const addresses = await getUserAddresses(userId);
     return NextResponse.json(addresses);
   } catch (error) {
-    console.error("Error fetching addresses:", error);
+    console.error("Error in GET /api/addresses:", error);
     return NextResponse.json(
-      { message: "Error fetching addresses" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/addresses - Create a new address
+// POST: Create a new address
 export async function POST(req: NextRequest) {
   try {
-    const userId = await verifyNextAuthToken(req);
+    const userId = await verifyToken(req);
 
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

@@ -1,6 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useCheckout } from "@/hooks/useCheckout";
 import { OrderItems } from "./OrderItems";
 import { ShippingAddress } from "./ShippingAddress";
@@ -10,7 +9,6 @@ import { AddAddressDialog } from "./AddAddressDialog";
 import { CheckoutLoading, ProductLoading, EmptyCart } from "./CheckoutLoading";
 
 export function CheckoutContent() {
-  const router = useRouter();
   const {
     user,
     authLoading,
@@ -29,39 +27,13 @@ export function CheckoutContent() {
   } = useCheckout();
 
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  // Handle authentication redirect with sessionStorage to prevent loops
-  useEffect(() => {
-    const redirectKey = "checkout-redirect-attempted";
-    const hasAttemptedRedirect = sessionStorage.getItem(redirectKey);
-
-    if (!authLoading && !user && !hasAttemptedRedirect && !isRedirecting) {
-      setIsRedirecting(true);
-      sessionStorage.setItem(redirectKey, "true");
-      console.log("🔄 Redirecting to login from checkout");
-
-      // Add small delay to prevent race condition
-      setTimeout(() => {
-        router.replace("/login?callbackUrl=" + encodeURIComponent("/checkout"));
-      }, 100);
-    }
-  }, [authLoading, user, router, isRedirecting]);
-
-  // Clear redirect tracking when user becomes available
-  useEffect(() => {
-    if (user) {
-      sessionStorage.removeItem("checkout-redirect-attempted");
-      setIsRedirecting(false);
-    }
-  }, [user]);
 
   // Loading states
-  if (authLoading || isRedirecting) {
+  if (authLoading) {
     return <CheckoutLoading />;
   }
 
-  // If not authenticated, show loading while redirecting
+  // AuthGuard handles authentication, so we can assume user exists here
   if (!user) {
     return <CheckoutLoading />;
   }

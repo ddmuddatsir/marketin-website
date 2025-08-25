@@ -1,14 +1,14 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
-  User,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut as firebaseSignOut,
   onAuthStateChanged,
+  User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AuthContextType } from "@/types/auth";

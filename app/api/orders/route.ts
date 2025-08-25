@@ -54,20 +54,68 @@ export async function GET(req: NextRequest) {
 
     // Get orders from Firebase
     const ordersRef = adminDb.collection("orders");
-    const snapshot = await ordersRef
-      .where("userId", "==", userId)
-      .orderBy("createdAt", "desc")
-      .get();
 
-    const orders = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
-    }));
+    try {
+      // Try to use the optimized query with ordering
+      const snapshot = await ordersRef
+        .where("userId", "==", userId)
+        .orderBy("createdAt", "desc")
+        .get();
 
-    console.log("✅ Orders loaded successfully:", orders.length, "orders");
-    return NextResponse.json(orders);
+      const orders = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+        updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+      }));
+
+      console.log("✅ Orders loaded successfully:", orders.length, "orders");
+      return NextResponse.json(orders);
+    } catch (error: unknown) {
+      // If index is missing, fall back to simple query and sort client-side
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error.code === 9 ||
+          ("message" in error &&
+            typeof error.message === "string" &&
+            error.message.includes("requires an index")))
+      ) {
+        console.log("⚠️ Index missing, falling back to simple query...");
+
+        const fallbackSnapshot = await ordersRef
+          .where("userId", "==", userId)
+          .get();
+
+        const orders = fallbackSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+          updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+        }));
+
+        // Sort client-side by createdAt descending
+        orders.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        console.log("✅ Orders loaded with fallback:", orders.length, "orders");
+        console.log(
+          "💡 Please create the Firestore index for better performance:"
+        );
+        console.log(
+          "   https://console.firebase.google.com/v1/r/project/marketin-462707/firestore/indexes"
+        );
+
+        return NextResponse.json(orders);
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
   } catch (error) {
     console.error("❌ Error fetching orders:", error);
     return NextResponse.json(
