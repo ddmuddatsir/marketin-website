@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useCheckout } from "@/hooks/useCheckout";
 import { OrderItems } from "./OrderItems";
 import { ShippingAddress } from "./ShippingAddress";
@@ -9,6 +10,7 @@ import { AddAddressDialog } from "./AddAddressDialog";
 import { CheckoutLoading, ProductLoading, EmptyCart } from "./CheckoutLoading";
 
 export function CheckoutContent() {
+  const router = useRouter();
   const {
     user,
     authLoading,
@@ -27,14 +29,24 @@ export function CheckoutContent() {
   } = useCheckout();
 
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
+
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!authLoading && !user && !hasRedirected) {
+      setHasRedirected(true);
+      router.replace("/login?callbackUrl=" + encodeURIComponent("/checkout"));
+    }
+  }, [authLoading, user, router, hasRedirected]);
 
   // Loading states
   if (authLoading) {
     return <CheckoutLoading />;
   }
 
+  // If not authenticated, show loading while redirecting
   if (!user) {
-    return null;
+    return <CheckoutLoading />;
   }
 
   if (loadingProduct) {

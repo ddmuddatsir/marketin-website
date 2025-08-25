@@ -26,15 +26,8 @@ export function useCheckout() {
   const [addressId, setAddressId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false);
 
-  // Auth protection
-  useEffect(() => {
-    if (!authLoading && !user && !hasRedirected) {
-      setHasRedirected(true);
-      router.replace("/login?callbackUrl=" + encodeURIComponent("/checkout"));
-    }
-  }, [authLoading, user, router, hasRedirected]);
+  // Remove redirect logic - let page handle authentication
 
   // Set default address
   useEffect(() => {
