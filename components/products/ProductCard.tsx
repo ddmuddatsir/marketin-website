@@ -56,7 +56,7 @@ export function ProductCard({
           {showWishlist && <WishlistButton productId={String(product.id)} />}
         </div>
         {showRating && (
-          <div className="flex items-center gap-1 text-yellow-500 mt-1">
+          <div className="flex items-center gap-1 text-yellow-400 mt-1">
             <FaStar />
             <span className="text-sm font-medium text-gray-700">
               {"rating" in product &&

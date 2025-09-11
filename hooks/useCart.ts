@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,8 @@ export function useCart() {
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track previous user state to detect logout
+  const prevUserRef = useRef(user);
 
   // Load from localStorage
   const loadFromLocalStorage = () => {
@@ -59,12 +61,23 @@ export function useCart() {
     try {
       console.log(
         "🔄 Loading cart from Firebase for user:",
-        user?.id || "guest"
+        user?.uid || "guest"
       );
+
+      // Prepare headers
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+
+      // Add authorization header if user is authenticated
+      if (user) {
+        const token = await user.getIdToken();
+        headers["Authorization"] = `Bearer ${token}`;
+        console.log("🔑 Added Firebase token to request headers");
+      }
+
       const response = await fetch("/api/cart", {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         credentials: "include",
       });
 
@@ -119,11 +132,32 @@ export function useCart() {
     }
   }, [user]); // Remove user dependency since we handle both authenticated and guest users
 
+  // Handle user authentication state changes
+  useEffect(() => {
+    // Detect logout: previous user existed but current user is null
+    if (prevUserRef.current && !user && !authLoading) {
+      console.log("🔄 User logged out, clearing cart");
+      setCart({ items: [], total: 0, count: 0 });
+      localStorage.removeItem(CART_STORAGE_KEY);
+    }
+    prevUserRef.current = user;
+  }, [user, authLoading]);
+
   // Initial load
   useEffect(() => {
     if (authLoading) return;
 
     setLoading(true);
+
+    // If user is null (logged out), clear the cart
+    if (user === null) {
+      console.log("🔄 User logged out, clearing cart");
+      setCart({ items: [], total: 0, count: 0 });
+      localStorage.removeItem(CART_STORAGE_KEY);
+      setLoading(false);
+      return;
+    }
+
     // Load from Firebase for both authenticated and guest users
     loadFromFirebase().finally(() => setLoading(false));
   }, [user, authLoading, loadFromFirebase]);
@@ -133,266 +167,396 @@ export function useCart() {
     await loadFromFirebase();
   }, [loadFromFirebase]);
 
-  const addToCart = async (productId: string, quantity = 1) => {
+  const addToCart = async (productId: string | number, quantity = 1) => {
+    // Check if user is authenticated before proceeding
+    if (!user) {
+      console.warn("❌ Cannot add to cart: User not authenticated");
+      showError("Login Required", "Please login to add items to cart");
+      // Redirect to login page after showing error
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
+      return;
+    }
+
+    // Store previous cart state for rollback
+    const previousCart = cart ? { ...cart, items: [...cart.items] } : null;
+
     try {
-      // Fetch product details from DummyJSON API
+      // Get product details
       const productResponse = await externalApiClient.get(
         `/products/${productId}`
       );
       const product = productResponse.data;
 
-      if (!product) {
-        showError(
-          "Product Not Found",
-          "The requested product could not be found."
+      // OPTIMISTIC UPDATE: Update UI immediately
+      if (cart) {
+        const existingItemIndex = cart.items.findIndex(
+          (item) => item.productId === productId.toString()
         );
-        return;
-      }
 
-      const newItem: CartItem = {
-        id: Date.now().toString(),
-        productId: productId.toString(),
-        quantity,
-        price: product.price,
-        name: product.title,
-        image: product.thumbnail || product.images?.[0],
-        addedAt: new Date(),
-        product: {
-          ...product,
-          image: product.thumbnail || product.images?.[0], // Ensure image field is set
-        },
-        userId: user?.id || "guest",
-      };
-
-      // Try Firebase first, fallback to localStorage if authentication fails
-      try {
-        const response = await fetch("/api/cart", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
+        let newItems: CartItem[];
+        if (existingItemIndex >= 0) {
+          // Update existing item quantity
+          newItems = [...cart.items];
+          newItems[existingItemIndex] = {
+            ...newItems[existingItemIndex],
+            quantity: newItems[existingItemIndex].quantity + quantity,
+          };
+        } else {
+          // Add new item
+          const newItem: CartItem = {
+            id: Date.now().toString(), // Temporary ID
             productId: productId.toString(),
             quantity,
             price: product.price,
             name: product.title,
             image: product.thumbnail || product.images?.[0],
-          }),
-        });
-
-        if (response.ok) {
-          console.log("✅ Item added to Firebase cart successfully");
-          await fetchCart();
-          showSuccess(
-            "Added to Cart! 🛒",
-            `${quantity} item${quantity > 1 ? "s" : ""} added successfully`,
-            {
-              label: "View Cart",
-              onClick: () => router.push("/cart"),
-            }
-          );
-          return;
-        } else if (response.status === 401) {
-          console.log(
-            "🔄 Firebase requires authentication, using localStorage fallback"
-          );
-          // Continue to localStorage fallback below
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          console.error("Add to cart failed:", response.status, errorData);
-          throw new Error(
-            errorData.message || errorData.error || "Failed to add to cart"
-          );
+            addedAt: new Date(),
+          };
+          newItems = [...cart.items, newItem];
         }
-      } catch (fetchError) {
-        console.log(
-          "🔄 Firebase request failed, using localStorage fallback:",
-          fetchError
+
+        const newTotal = newItems.reduce(
+          (sum, item) => sum + (item.price || 0) * item.quantity,
+          0
         );
-        // Continue to localStorage fallback below
+        const newCount = newItems.reduce((sum, item) => sum + item.quantity, 0);
+
+        const optimisticCart = {
+          items: newItems,
+          total: newTotal,
+          count: newCount,
+        };
+        setCart(optimisticCart);
+        saveToLocalStorage(newItems);
+
+        // Show immediate success feedback
+        showSuccess(
+          "Added to Cart! 🛒",
+          `${quantity} item${quantity > 1 ? "s" : ""} added successfully`,
+          {
+            label: "View Cart",
+            onClick: () => router.push("/cart"),
+          }
+        );
       }
 
-      // localStorage fallback (for guest users or when Firebase fails)
-      console.log("💾 Adding item to localStorage cart");
-      const currentItems = cart?.items || [];
-      const existingItemIndex = currentItems.findIndex(
-        (item) => item.productId === productId.toString()
-      );
+      // Background server request
+      const token = await user.getIdToken();
+      const response = await fetch("/api/cart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          productId: productId.toString(),
+          quantity,
+          price: product.price,
+          name: product.title,
+          image: product.thumbnail || product.images?.[0],
+        }),
+      });
 
-      let updatedItems;
-      if (existingItemIndex !== -1) {
-        updatedItems = [...currentItems];
-        updatedItems[existingItemIndex].quantity += quantity;
-        console.log(
-          `📦 Updated existing item quantity: ${updatedItems[existingItemIndex].quantity}`
-        );
+      if (response.ok) {
+        console.log("✅ Item added to Firebase cart successfully");
+        // Sync with server data to get accurate cart state
+        await fetchCart();
       } else {
-        updatedItems = [...currentItems, newItem];
-        console.log("📦 Added new item to localStorage cart");
+        // ROLLBACK: Restore previous state on server error
+        if (previousCart) {
+          setCart(previousCart);
+          saveToLocalStorage(previousCart.items);
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Add to cart failed:", response.status, errorData);
+
+        if (response.status === 401) {
+          showError("Login Required", "Please login to add items to your cart");
+          setTimeout(() => {
+            router.push("/login");
+          }, 1500);
+        } else {
+          showError(
+            "Failed to Add Item",
+            errorData.message ||
+              errorData.error ||
+              "Server error - changes have been reverted"
+          );
+        }
+      }
+    } catch (error) {
+      // ROLLBACK: Restore previous state on any error
+      if (previousCart) {
+        setCart(previousCart);
+        saveToLocalStorage(previousCart.items);
       }
 
-      const total = updatedItems.reduce(
-        (sum, item) => sum + (item.price || 0) * item.quantity,
-        0
-      );
-      const count = updatedItems.reduce((sum, item) => sum + item.quantity, 0);
-
-      setCart({ items: updatedItems, total, count });
-      saveToLocalStorage(updatedItems);
-
-      showSuccess(
-        "Added to Cart! 🛒",
-        `${quantity} item${quantity > 1 ? "s" : ""} added successfully`,
-        {
-          label: "View Cart",
-          onClick: () => router.push("/cart"),
-        }
-      );
-    } catch (error) {
       console.error("Failed to add to cart:", error);
       showError(
         "Failed to Add Item",
-        "There was an error adding the item to your cart. Please try again."
+        "Network error - changes have been reverted. Please try again."
       );
     }
   };
 
   const removeFromCart = async (productId: string) => {
+    // Store previous cart state for rollback
+    const previousCart = cart ? { ...cart, items: [...cart.items] } : null;
+
     try {
+      if (!cart || !previousCart) return;
+
+      // OPTIMISTIC UPDATE: Remove from UI immediately
+      const updatedItems = cart.items.filter(
+        (item) => item.productId !== productId
+      );
+
+      const newTotal = updatedItems.reduce(
+        (sum, item) => sum + (item.price || 0) * item.quantity,
+        0
+      );
+      const newCount = updatedItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      );
+
+      const optimisticCart = {
+        items: updatedItems,
+        total: newTotal,
+        count: newCount,
+      };
+      setCart(optimisticCart);
+      saveToLocalStorage(updatedItems);
+
+      // Show immediate success feedback
+      showSuccess("Item Removed", "Item removed from cart successfully");
+
       if (user) {
-        // Find item in Firebase and remove
-        const item = cart?.items.find((item) => item.productId === productId);
+        // Background server request
+        const item = previousCart.items.find(
+          (item) => item.productId === productId
+        );
         if (item?.id) {
+          const token = await user.getIdToken();
           const response = await fetch(`/api/cart/${item.id}`, {
             method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
             credentials: "include",
           });
 
           if (response.ok) {
+            // Sync with server data to get accurate cart state
             await fetchCart();
           } else {
-            throw new Error("Failed to remove from cart");
+            // ROLLBACK: Restore previous state on server error
+            setCart(previousCart);
+            saveToLocalStorage(previousCart.items);
+
+            const errorData = await response.json().catch(() => ({}));
+            showError(
+              "Failed to Remove",
+              errorData.message ||
+                "Server error - item has been restored to cart"
+            );
           }
         }
-      } else {
-        // Remove from localStorage
-        const currentItems = cart?.items || [];
-        const updatedItems = currentItems.filter(
-          (item) => item.productId !== productId
-        );
-
-        const total = updatedItems.reduce(
-          (sum, item) => sum + (item.price || 0) * item.quantity,
-          0
-        );
-        const count = updatedItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-
-        setCart({ items: updatedItems, total, count });
-        saveToLocalStorage(updatedItems);
+      }
+    } catch (error) {
+      // ROLLBACK: Restore previous state on any error
+      if (previousCart) {
+        setCart(previousCart);
+        saveToLocalStorage(previousCart.items);
       }
 
-      showSuccess("Item Removed", "Item removed from cart successfully");
-    } catch (error) {
       console.error("Failed to remove from cart:", error);
-      showError("Failed to Remove", "Error removing item from cart");
+      showError(
+        "Failed to Remove",
+        "Network error - item has been restored to cart. Please try again."
+      );
     }
   };
 
   const increaseQuantity = async (productId: string) => {
+    // Store previous cart state for rollback
+    const previousCart = cart ? { ...cart, items: [...cart.items] } : null;
+
     try {
+      if (!cart || !previousCart) return;
+
+      // OPTIMISTIC UPDATE: Increase quantity in UI immediately
+      const updatedItems = cart.items.map((item) =>
+        item.productId === productId
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      );
+
+      const newTotal = updatedItems.reduce(
+        (sum, item) => sum + (item.price || 0) * item.quantity,
+        0
+      );
+      const newCount = updatedItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      );
+
+      const optimisticCart = {
+        items: updatedItems,
+        total: newTotal,
+        count: newCount,
+      };
+      setCart(optimisticCart);
+      saveToLocalStorage(updatedItems);
+
       if (user) {
-        const item = cart?.items.find((item) => item.productId === productId);
+        // Background server request
+        const item = previousCart.items.find(
+          (item) => item.productId === productId
+        );
         if (item?.id) {
+          const token = await user.getIdToken();
           const response = await fetch(`/api/cart/${item.id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
             credentials: "include",
             body: JSON.stringify({ quantity: item.quantity + 1 }),
           });
 
           if (response.ok) {
+            // Sync with server data to get accurate cart state
             await fetchCart();
+          } else {
+            // ROLLBACK: Restore previous state on server error
+            setCart(previousCart);
+            saveToLocalStorage(previousCart.items);
+
+            const errorData = await response.json().catch(() => ({}));
+            showError(
+              "Update Failed",
+              errorData.message ||
+                "Failed to update quantity - changes reverted"
+            );
           }
         }
-      } else {
-        const currentItems = cart?.items || [];
-        const updatedItems = currentItems.map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-
-        const total = updatedItems.reduce(
-          (sum, item) => sum + (item.price || 0) * item.quantity,
-          0
-        );
-        const count = updatedItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-
-        setCart({ items: updatedItems, total, count });
-        saveToLocalStorage(updatedItems);
       }
     } catch (error) {
+      // ROLLBACK: Restore previous state on any error
+      if (previousCart) {
+        setCart(previousCart);
+        saveToLocalStorage(previousCart.items);
+      }
+
       console.error("Failed to increase quantity:", error);
+      showError(
+        "Update Failed",
+        "Network error - quantity change has been reverted. Please try again."
+      );
     }
   };
 
   const decreaseQuantity = async (productId: string) => {
+    // Store previous cart state for rollback
+    const previousCart = cart ? { ...cart, items: [...cart.items] } : null;
+
     try {
+      if (!cart || !previousCart) return;
+
+      // Check if item quantity is greater than 1
+      const currentItem = cart.items.find(
+        (item) => item.productId === productId
+      );
+      if (!currentItem || currentItem.quantity <= 1) return;
+
+      // OPTIMISTIC UPDATE: Decrease quantity in UI immediately
+      const updatedItems = cart.items.map((item) =>
+        item.productId === productId && item.quantity > 1
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      );
+
+      const newTotal = updatedItems.reduce(
+        (sum, item) => sum + (item.price || 0) * item.quantity,
+        0
+      );
+      const newCount = updatedItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      );
+
+      const optimisticCart = {
+        items: updatedItems,
+        total: newTotal,
+        count: newCount,
+      };
+      setCart(optimisticCart);
+      saveToLocalStorage(updatedItems);
+
       if (user) {
-        const item = cart?.items.find((item) => item.productId === productId);
+        // Background server request
+        const item = previousCart.items.find(
+          (item) => item.productId === productId
+        );
         if (item?.id && item.quantity > 1) {
+          const token = await user.getIdToken();
           const response = await fetch(`/api/cart/${item.id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
             credentials: "include",
             body: JSON.stringify({ quantity: item.quantity - 1 }),
           });
 
           if (response.ok) {
+            // Sync with server data to get accurate cart state
             await fetchCart();
+          } else {
+            // ROLLBACK: Restore previous state on server error
+            setCart(previousCart);
+            saveToLocalStorage(previousCart.items);
+
+            const errorData = await response.json().catch(() => ({}));
+            showError(
+              "Update Failed",
+              errorData.message ||
+                "Failed to update quantity - changes reverted"
+            );
           }
         }
-      } else {
-        const currentItems = cart?.items || [];
-        const updatedItems = currentItems.map((item) =>
-          item.productId === productId && item.quantity > 1
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
-        );
-
-        const total = updatedItems.reduce(
-          (sum, item) => sum + (item.price || 0) * item.quantity,
-          0
-        );
-        const count = updatedItems.reduce(
-          (sum, item) => sum + item.quantity,
-          0
-        );
-
-        setCart({ items: updatedItems, total, count });
-        saveToLocalStorage(updatedItems);
       }
     } catch (error) {
+      // ROLLBACK: Restore previous state on any error
+      if (previousCart) {
+        setCart(previousCart);
+        saveToLocalStorage(previousCart.items);
+      }
+
       console.error("Failed to decrease quantity:", error);
+      showError(
+        "Update Failed",
+        "Network error - quantity change has been reverted. Please try again."
+      );
     }
   };
 
   const clearCart = async () => {
     try {
       if (user) {
+        const token = await user.getIdToken();
         const response = await fetch("/api/cart", {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           credentials: "include",
         });
 

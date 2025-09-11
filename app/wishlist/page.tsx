@@ -7,13 +7,17 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export const dynamic = "force-dynamic";
 
-export default function Page() {
+export default function WishlistPage() {
   const { user, loading: authLoading } = useAuth();
   const { wishlist, loading, isAuthenticated } = useWishlist();
 
   // Show loading while checking authentication
   if (authLoading || loading) {
-    return <div className="p-8 text-center">Loading wishlist...</div>;
+    return (
+      <main className="max-w-6xl mx-auto p-4">
+        <div className="p-8 text-center">Loading wishlist...</div>
+      </main>
+    );
   }
 
   // Show auth required message if not authenticated

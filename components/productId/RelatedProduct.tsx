@@ -1,7 +1,6 @@
 import { useProductCategory } from "@/hooks/useProduct";
-import Image from "next/image";
-import Link from "next/link";
 import React from "react";
+import { ProductCard } from "@/components/products/ProductCard";
 
 interface RelatedProductProps {
   category: string;
@@ -16,8 +15,30 @@ const RelatedProduct: React.FC<RelatedProductProps> = ({
 
   if (isLoading || !category) {
     return (
-      <div className="flex justify-center items-center h-64 text-muted-foreground">
-        Loading related products...
+      <div>
+        <section>
+          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse"
+              >
+                {/* Image skeleton */}
+                <div className="aspect-square bg-gray-200"></div>
+                {/* Content skeleton */}
+                <div className="p-4 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="flex items-center gap-1">
+                    <div className="h-3 w-3 bg-gray-200 rounded"></div>
+                    <div className="h-3 bg-gray-200 rounded w-10"></div>
+                  </div>
+                  <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     );
   }
@@ -40,28 +61,15 @@ const RelatedProduct: React.FC<RelatedProductProps> = ({
     <div>
       <section>
         <h2 className="text-2xl font-bold mb-6">Related Products</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.slice(0, 6).map((product) => (
-            <Link
-              key={product.id}
-              href={`/products/${product.id}`}
-              className="border rounded-lg p-4 hover:shadow-md transition bg-white"
-            >
-              <Image
-                src={product.thumbnail || product.image || "/placeholder.png"}
-                alt={product.title}
-                width={300}
-                height={200}
-                className="rounded-md object-cover w-full h-40"
+            <div key={product.id}>
+              <ProductCard
+                product={product}
+                showDescription={false}
+                showRating={true}
               />
-              <h3 className="mt-2 font-semibold">{product.title}</h3>
-              <p className="text-sm text-gray-600">
-                ${product.price.toFixed(2)}
-              </p>
-              <p className="text-xs text-yellow-500">
-                ⭐ {product.rating ? product.rating.toFixed(1) : "N/A"}
-              </p>
-            </Link>
+            </div>
           ))}
         </div>
       </section>

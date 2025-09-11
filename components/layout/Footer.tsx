@@ -12,8 +12,9 @@ export default function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Marketin</h3>
             <p className="text-sm text-gray-600">
-              Your one-stop shop for all your needs. Quality products, great
-              prices, and excellent service.
+              Your trusted online marketplace for quality products. Discover
+              amazing deals, add items to your wishlist, and enjoy seamless
+              shopping experience.
             </p>
             <div className="flex gap-4">
               <a href="#" className="text-gray-600 hover:text-blue-600">
@@ -33,7 +34,7 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Quick Links</h3>
+            <h3 className="text-lg font-semibold">Shop</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
                 <Link href="/products" className="hover:text-blue-600">
@@ -41,69 +42,91 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/categories" className="hover:text-blue-600">
-                  Categories
+                <Link
+                  href="/products/category/electronics"
+                  className="hover:text-blue-600"
+                >
+                  Electronics
                 </Link>
               </li>
               <li>
-                <Link href="/deals" className="hover:text-blue-600">
-                  Special Deals
+                <Link
+                  href="/products/category/clothing"
+                  className="hover:text-blue-600"
+                >
+                  Clothing
                 </Link>
               </li>
               <li>
-                <Link href="/new-arrivals" className="hover:text-blue-600">
-                  New Arrivals
+                <Link
+                  href="/products/category/home"
+                  className="hover:text-blue-600"
+                >
+                  Home & Garden
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Customer Service */}
+          {/* Account & Support */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Customer Service</h3>
+            <h3 className="text-lg font-semibold">My Account</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <Link href="/contact" className="hover:text-blue-600">
-                  Contact Us
+                <Link href="/login" className="hover:text-blue-600">
+                  Sign In
                 </Link>
               </li>
               <li>
-                <Link href="/shipping" className="hover:text-blue-600">
-                  Shipping Information
+                <Link href="/register" className="hover:text-blue-600">
+                  Create Account
                 </Link>
               </li>
               <li>
-                <Link href="/returns" className="hover:text-blue-600">
-                  Returns & Exchanges
+                <Link href="/account/orders" className="hover:text-blue-600">
+                  My Orders
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="hover:text-blue-600">
-                  FAQ
+                <Link href="/wishlist" className="hover:text-blue-600">
+                  My Wishlist
+                </Link>
+              </li>
+              <li>
+                <Link href="/cart" className="hover:text-blue-600">
+                  Shopping Cart
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Contact & Info */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Newsletter</h3>
-            <p className="text-sm text-gray-600">
-              Subscribe to our newsletter for the latest updates and offers.
-            </p>
-            <form className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              >
-                Subscribe
-              </button>
-            </form>
+            <h3 className="text-lg font-semibold">Contact Info</h3>
+            <div className="space-y-3 text-sm text-gray-600">
+              <div>
+                <p className="font-medium">Customer Service</p>
+                <p>Email: support@marketin.com</p>
+                <p>Phone: +1 (555) 123-4567</p>
+              </div>
+              <div>
+                <p className="font-medium">Business Hours</p>
+                <p>Mon - Fri: 9:00 AM - 6:00 PM</p>
+                <p>Sat - Sun: 10:00 AM - 4:00 PM</p>
+              </div>
+              <div>
+                <p className="font-medium">Quick Help</p>
+                <Link
+                  href="/account/profile"
+                  className="block hover:text-blue-600"
+                >
+                  Account Settings
+                </Link>
+                <Link href="/checkout" className="block hover:text-blue-600">
+                  Checkout Help
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -111,18 +134,18 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-gray-200">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-600">
-              &copy; {new Date().getFullYear()} Marketin. All rights reserved.
+              &copy; {new Date().getFullYear()} Marketin E-commerce Platform.
+              All rights reserved.
             </p>
             <div className="flex gap-6 text-sm text-gray-600">
-              <Link href="/privacy" className="hover:text-blue-600">
-                Privacy Policy
+              <Link href="/account/addresses" className="hover:text-blue-600">
+                Shipping Info
               </Link>
-              <Link href="/terms" className="hover:text-blue-600">
-                Terms of Service
+              <Link href="/order-success" className="hover:text-blue-600">
+                Order Tracking
               </Link>
-              <Link href="/cookies" className="hover:text-blue-600">
-                Cookie Policy
-              </Link>
+              <span className="text-gray-400">•</span>
+              <span className="text-gray-500">Secure Shopping</span>
             </div>
           </div>
         </div>

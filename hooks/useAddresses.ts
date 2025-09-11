@@ -60,14 +60,93 @@ export function useAddresses() {
   }, [user, fetchAddresses]);
 
   const addAddress = async (addressData: Omit<Address, "id">) => {
+    // Store previous addresses state for rollback
+    const previousAddresses = [...addresses];
+
     try {
-      const response = await addressesAPI.create(addressData as Address);
-      setAddresses((prev) => [...prev, response.data]);
+      // OPTIMISTIC UPDATE: Add to UI immediately with temporary ID
+      const tempAddress: Address = {
+        ...addressData,
+        id: `temp-${Date.now()}`, // Temporary ID
+      } as Address;
+
+      setAddresses((prev) => [...prev, tempAddress]);
+
+      // Show immediate success feedback
       toast.success("Address added successfully");
+
+      // Background server request
+      const response = await addressesAPI.create(addressData as Address);
+
+      // Replace temporary address with server response
+      setAddresses((prev) =>
+        prev.map((addr) => (addr.id === tempAddress.id ? response.data : addr))
+      );
+
       return response.data;
     } catch (error) {
+      // ROLLBACK: Restore previous state on error
+      setAddresses(previousAddresses);
+
       console.error("Error adding address:", error);
-      toast.error("Failed to add address");
+      toast.error("Failed to add address - changes have been reverted");
+      throw error;
+    }
+  };
+
+  const updateAddress = async (id: string, addressData: Partial<Address>) => {
+    // Store previous addresses state for rollback
+    const previousAddresses = [...addresses];
+
+    try {
+      // OPTIMISTIC UPDATE: Update in UI immediately
+      setAddresses((prev) =>
+        prev.map((addr) =>
+          addr.id === id ? { ...addr, ...addressData } : addr
+        )
+      );
+
+      // Show immediate success feedback
+      toast.success("Address updated successfully");
+
+      // Background server request
+      const response = await addressesAPI.update(id, addressData);
+
+      // Update with server response to ensure consistency
+      setAddresses((prev) =>
+        prev.map((addr) => (addr.id === id ? response.data : addr))
+      );
+
+      return response.data;
+    } catch (error) {
+      // ROLLBACK: Restore previous state on error
+      setAddresses(previousAddresses);
+
+      console.error("Error updating address:", error);
+      toast.error("Failed to update address - changes have been reverted");
+      throw error;
+    }
+  };
+
+  const deleteAddress = async (id: string) => {
+    // Store previous addresses state for rollback
+    const previousAddresses = [...addresses];
+
+    try {
+      // OPTIMISTIC UPDATE: Remove from UI immediately
+      setAddresses((prev) => prev.filter((addr) => addr.id !== id));
+
+      // Show immediate success feedback
+      toast.success("Address deleted successfully");
+
+      // Background server request
+      await addressesAPI.remove(id);
+    } catch (error) {
+      // ROLLBACK: Restore previous state on error
+      setAddresses(previousAddresses);
+
+      console.error("Error deleting address:", error);
+      toast.error("Failed to delete address - address has been restored");
       throw error;
     }
   };
@@ -77,6 +156,8 @@ export function useAddresses() {
     loading,
     error,
     addAddress,
+    updateAddress,
+    deleteAddress,
     fetchAddresses,
   };
 }

@@ -154,7 +154,7 @@ export const getProductsByCategory = async (
   }
 };
 
-const LIMIT = 10;
+const LIMIT = 4;
 
 // Get all products
 export const fetchAllProducts = async ({

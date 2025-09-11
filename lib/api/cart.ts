@@ -14,6 +14,16 @@ export const addToCart = async ({
   productId: number;
   quantity: number;
 }) => {
+  // Get Firebase auth token
+  const { auth } = await import("@/lib/firebase");
+  const user = auth?.currentUser;
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await user.getIdToken();
+
   const res = await axios.post(
     `${API_BASE_URL}/api/cart`,
     {
@@ -23,6 +33,7 @@ export const addToCart = async ({
     {
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       withCredentials: true, // Important: This ensures cookies are sent
     }
@@ -33,7 +44,19 @@ export const addToCart = async ({
 
 // Get productid to cart product by id
 export const fetchCartByUser = async (): Promise<CartResponse> => {
+  // Get Firebase auth token
+  const { auth } = await import("@/lib/firebase");
+  const user = auth?.currentUser;
+
+  const headers: Record<string, string> = {};
+
+  if (user) {
+    const token = await user.getIdToken();
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const { data } = await axios.get(`${API_BASE_URL}/api/cart`, {
+    headers,
     withCredentials: true, // Important: This ensures cookies are sent
   });
   return data;
@@ -47,6 +70,16 @@ export const updateCart = async ({
   cartItemId: string;
   quantity: number;
 }) => {
+  // Get Firebase auth token
+  const { auth } = await import("@/lib/firebase");
+  const user = auth?.currentUser;
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await user.getIdToken();
+
   const { data } = await axios.put(
     `${API_BASE_URL}/api/cart/${cartItemId}`,
     {
@@ -55,6 +88,7 @@ export const updateCart = async ({
     {
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       withCredentials: true, // Important: This ensures cookies are sent
     }
@@ -66,9 +100,22 @@ export const updateCart = async ({
 export const deleteCartById = async (
   cartItemId: string
 ): Promise<CartResponse> => {
+  // Get Firebase auth token
+  const { auth } = await import("@/lib/firebase");
+  const user = auth?.currentUser;
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await user.getIdToken();
+
   const { data } = await axios.delete(
     `${API_BASE_URL}/api/cart/${cartItemId}`,
     {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       withCredentials: true, // Important: This ensures cookies are sent
     }
   );

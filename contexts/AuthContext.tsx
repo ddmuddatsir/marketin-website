@@ -115,8 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear wishlist from localStorage when signing out
+      // Clear both wishlist and cart from localStorage when signing out
       localStorage.removeItem("wishlist_items");
+      localStorage.removeItem("cart_items");
 
       // Handle development mode with mock user
       if (process.env.NODE_ENV === "development" && !auth) {

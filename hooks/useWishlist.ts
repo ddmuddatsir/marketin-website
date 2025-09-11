@@ -3,16 +3,24 @@ import { WishlistItem } from "@/types/wishlist";
 import { Product } from "@/types/product";
 import { externalApiClient } from "@/lib/api/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { useRouter } from "next/navigation";
 
 export interface WishlistData {
   items: WishlistItem[];
+  count: number;
 }
 
 const WISHLIST_STORAGE_KEY = "wishlist_items";
 
 export const useWishlist = () => {
   const { user, loading: authLoading } = useAuth();
-  const [wishlist, setWishlist] = useState<WishlistData>({ items: [] });
+  const { showError } = useToast();
+  const router = useRouter();
+  const [wishlist, setWishlist] = useState<WishlistData>({
+    items: [],
+    count: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -62,7 +70,7 @@ export const useWishlist = () => {
         }));
 
         console.log("✅ Setting wishlist from localStorage:", items.length);
-        setWishlist({ items });
+        setWishlist({ items, count: items.length });
       } else {
         console.log("📱 No localStorage data found");
       }
@@ -141,13 +149,13 @@ export const useWishlist = () => {
               items.length,
               items
             );
-            setWishlist({ items });
+            setWishlist({ items, count: items.length });
             saveToLocalStorage(items);
           } else {
             console.log(
               "📝 No items in development response, setting empty wishlist"
             );
-            setWishlist({ items: [] });
+            setWishlist({ items: [], count: 0 });
           }
         } else {
           const errorText = await response.text();
@@ -156,11 +164,11 @@ export const useWishlist = () => {
             response.status,
             errorText
           );
-          setWishlist({ items: [] });
+          setWishlist({ items: [], count: 0 });
         }
       } catch (error) {
         console.error("❌ Error loading from development API:", error);
-        setWishlist({ items: [] });
+        setWishlist({ items: [], count: 0 });
       }
       return;
     }
@@ -221,12 +229,12 @@ export const useWishlist = () => {
           ) as WishlistItem[];
 
           console.log("✅ Processed wishlist items:", items.length, items);
-          setWishlist({ items });
+          setWishlist({ items, count: items.length });
           // Also save to localStorage for offline access
           saveToLocalStorage(items);
         } else {
           console.log("📝 No items in response, setting empty wishlist");
-          setWishlist({ items: [] });
+          setWishlist({ items: [], count: 0 });
         }
       } else {
         const errorText = await response.text();
@@ -274,7 +282,7 @@ export const useWishlist = () => {
           await loadFromFirebase();
         } catch (error) {
           console.error("❌ Error loading wishlist in dev mode:", error);
-          setWishlist({ items: [] });
+          setWishlist({ items: [], count: 0 });
         } finally {
           setLoading(false);
         }
@@ -284,7 +292,7 @@ export const useWishlist = () => {
       if (!user) {
         // Clear wishlist if not authenticated and not in explicit dev mode
         console.log("🚫 No user - clearing wishlist");
-        setWishlist({ items: [] });
+        setWishlist({ items: [], count: 0 });
         setLoading(false);
         return;
       }
@@ -318,6 +326,11 @@ export const useWishlist = () => {
     // Require authentication
     if (!user) {
       console.warn("❌ Cannot add to wishlist: User not authenticated");
+      showError("Login Required", "Please login to add items to your wishlist");
+      // Redirect to login page after showing error
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
       return false;
     }
 
@@ -346,7 +359,7 @@ export const useWishlist = () => {
       console.log("📝 New wishlist items count:", newItems.length);
 
       // Update state
-      setWishlist({ items: newItems });
+      setWishlist({ items: newItems, count: newItems.length });
 
       // Save to localStorage
       saveToLocalStorage(newItems);
@@ -403,7 +416,7 @@ export const useWishlist = () => {
       );
 
       // Update state
-      setWishlist({ items: newItems });
+      setWishlist({ items: newItems, count: newItems.length });
 
       // Save to localStorage
       saveToLocalStorage(newItems);
@@ -459,12 +472,12 @@ export const useWishlist = () => {
 
   // Clear wishlist (for logout)
   const clearWishlist = () => {
-    setWishlist({ items: [] });
+    setWishlist({ items: [], count: 0 });
     localStorage.removeItem(WISHLIST_STORAGE_KEY);
   };
 
   return {
-    wishlist: user || isDevelopmentMode ? wishlist : { items: [] }, // Return wishlist if authenticated or in dev mode
+    wishlist: user || isDevelopmentMode ? wishlist : { items: [], count: 0 }, // Return wishlist if authenticated or in dev mode
     loading,
     addToWishlist,
     removeFromWishlist,
