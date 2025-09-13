@@ -1,3 +1,5 @@
+"use client";
+
 import { useProductCategory } from "@/hooks/useProduct";
 import React from "react";
 import { ProductCard } from "@/components/products/ProductCard";
